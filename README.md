@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # App de Agendamento - Flutter & Firebase
 
 Este projeto é um aplicativo de agendamento desenvolvido em Flutter, com autenticação e integração de banco de dados com Firebase. Ele permite aos usuários agendar horários e, caso o agendamento seja cancelado, o horário volta a estar disponível.
