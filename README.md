@@ -133,5 +133,5 @@ Feito com ❤️ por [Kennedy Ramos](https://github.com/KennnedyRamos)
 **LinkedIn**: [linkedin.com/in/kennedy-ramos](https://www.linkedin.com/in/kennedy-silva-ramos-566b00150/)
 
 Conecte-se conosco nas redes sociais:  
-🔗 [Instagram](https://www.instagram.com/kennedyramos_/) | 🌐 [Site Oficial]([https://www.seu-site.com](https://kennnedyramos.github.io/meu-postifolio-web/)
+🔗 [Instagram](https://www.instagram.com/kennedyramos_/) | 🌐 [Site Oficial](https://kennnedyramos.github.io/meu-postifolio-web/)
 
