@@ -57,7 +57,7 @@ project/
 │   │   │     ├── appointment_services.dart
 │   │   │     ├── firestone_service.dart
 │   │   └── app_widget.dart
-│  ├── firebase_options.dart
+│   ├── firebase_options.dart
 │   └── main.dart
 ├── android/
 ├── ios/
