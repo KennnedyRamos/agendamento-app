@@ -69,7 +69,7 @@ project/
 ### Clone o repositório:
 
 ```bash
-git clone https://github.com/seu-usuario/seu-repositorio.git
+git clone https://github.com/KennnedyRamos/agendamento-app
 ````
 ### Instale as dependências:
 
