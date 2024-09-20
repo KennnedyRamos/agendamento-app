@@ -39,10 +39,10 @@ project/
 │
 ├── lib/
 │   ├── _colors/
-│   │   ├── my_colors.dart
+│   │   └── my_colors.dart
 │   ├── app/
 │   │   ├── models/ 
-│   │   │     ├── cadastro_cliente_models.dart
+│   │   │     └── cadastro_cliente_models.dart
 │   │   ├── screens/
 │   │   │     ├── Widget/
 │   │   │     │     └── appointments_list_tile.dart
@@ -52,10 +52,10 @@ project/
 │   │   │     ├── profile_page.dart
 │   │   │     ├── register_page.dart
 │   │   │     ├── reset_password_page.dart
-│   │   │     ├── welcome_page.dart
+│   │   │     └── welcome_page.dart
 │   │   ├── services/
 │   │   │     ├── appointment_services.dart
-│   │   │     ├── firestone_service.dart
+│   │   │     └── firestone_service.dart
 │   │   └── app_widget.dart
 │   ├── firebase_options.dart
 │   └── main.dart
