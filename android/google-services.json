@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "270384841266",
+    "project_id": "app-agenda-55e88",
+    "storage_bucket": "app-agenda-55e88.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270384841266:android:6c5b317795431510fbf22b",
+        "android_client_info": {
+          "package_name": "com.example.app_agenda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCk37Cb84_UhSvjkSbrIJuE8vukHw5S0jU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270384841266:android:680422395199a339fbf22b",
+        "android_client_info": {
+          "package_name": "com.exemple.app_agenda"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCk37Cb84_UhSvjkSbrIJuE8vukHw5S0jU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
