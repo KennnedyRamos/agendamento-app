@@ -37,24 +37,31 @@ O sistema de autenticação é integrado com Firebase Authentication, permitindo
 project/
 │
 ├── lib/
-│   ├── main.dart
-│   ├── screens/
-│   │   ├── login_screen.dart
-│   │   ├── signup_screen.dart
-│   │   ├── calendar_screen.dart
-│   │   └── profile_screen.dart
-│   ├── services/
-│   │   ├── auth_service.dart
-│   │   ├── firestore_service.dart
-│   │   └── notification_service.dart
-│   └── widgets/
-│       ├── custom_button.dart
-│       ├── custom_text_field.dart
-│       └── calendar_widget.dart
-│
+│   ├── _colors/
+│   │   ├── my_colors.dart
+│   ├── app/
+│   │   ├── models/ 
+│   │   │     ├── appointment_model.dart
+│   │   │     ├── cadastro_cliente_models.dart
+│   │   ├── screens/
+│   │   │     ├── Widget/
+│   │   │     │
+│   │   │     ├── events_page.dart
+│   │   │     ├── home_page.dart
+│   │   │     ├── login_page_cliente.dart
+│   │   │     ├── profile_page.dart
+│   │   │     ├── register_page.dart
+│   │   │     ├── reset_password_page.dart
+│   │   │     ├── welcome_page.dart
+│   │   ├── services/
+│   │   │     ├── appointment_services.dart
+│   │   │     ├── firebase_config.dart
+│   │   │     ├── firestone_service.dart
+│   │   └── app_widget.dart
+│  ├── firebase_options.dart
+|   └── main.dart
 ├── android/
 ├── ios/
-├── firebase_options.dart
 └── pubspec.yaml
 ````
 ## 🔧 Instalação e Execução
