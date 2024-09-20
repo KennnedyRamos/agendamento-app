@@ -42,7 +42,6 @@ project/
 │   │   ├── my_colors.dart
 │   ├── app/
 │   │   ├── models/ 
-│   │   │     ├── appointment_model.dart
 │   │   │     ├── cadastro_cliente_models.dart
 │   │   ├── screens/
 │   │   │     ├── Widget/
@@ -56,7 +55,6 @@ project/
 │   │   │     ├── welcome_page.dart
 │   │   ├── services/
 │   │   │     ├── appointment_services.dart
-│   │   │     ├── firebase_config.dart
 │   │   │     ├── firestone_service.dart
 │   │   └── app_widget.dart
 │  ├── firebase_options.dart
