@@ -58,7 +58,7 @@ project/
 │   │   │     ├── firestone_service.dart
 │   │   └── app_widget.dart
 │  ├── firebase_options.dart
-|   └── main.dart
+│   └── main.dart
 ├── android/
 ├── ios/
 └── pubspec.yaml
