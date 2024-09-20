@@ -77,10 +77,5 @@ firebase_options.dart
 firebase_config.dart
 firestore_service.dart
 =======
-services/firebase_config.dart
-services/firestore_service.dart
 
-# Ignorar arquivos de log e temporários
-*.log
-*.tmp
->>>>>>> a258282 (Atualizando .gitignore para evitar arquivos sensíveis)
+
