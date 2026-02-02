@@ -29,7 +29,7 @@ class CadastroClienteModels {
       nome: map['nome'] ?? '',
       sobrenome: map['sobrenome'] ?? '',
       email: map['email'] ?? '',
-      telefone: map['telefone'] ?? 0,
+      telefone: map['telefone']?.toString() ?? '',
     );
   }
 }

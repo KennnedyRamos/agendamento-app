@@ -133,3 +133,55 @@ Feito com ❤️ por [Kennedy Ramos](https://github.com/KennnedyRamos)
 
 Conecte-se conosco nas redes sociais:  
 🔗 [Instagram](https://www.instagram.com/kennedyramos_/) | 🌐 [Site Oficial](https://kennnedyramos.github.io/meu-postifolio-web/)
+
+## Supabase Storage (setup rapido)
+
+### 1) Criar bucket
+- Bucket: `barbershop-images`
+- Public: ON
+- Allowed mime types: `image/jpeg`, `image/png`, `image/webp`
+- File size limit: 2MB
+
+### 2) Policies (por usuario)
+Cole no SQL Editor do Supabase:
+
+```sql
+-- INSERT
+create policy "barbershops insert (own folder)"
+on storage.objects for insert to authenticated
+with check (
+  bucket_id = 'barbershop-images'
+  and name like 'barbershops/' || auth.uid() || '/%'
+);
+
+-- UPDATE (upsert)
+create policy "barbershops update (own folder)"
+on storage.objects for update to authenticated
+using (
+  bucket_id = 'barbershop-images'
+  and name like 'barbershops/' || auth.uid() || '/%'
+)
+with check (
+  bucket_id = 'barbershop-images'
+  and name like 'barbershops/' || auth.uid() || '/%'
+);
+
+-- SELECT
+create policy "barbershops select (bucket)"
+on storage.objects for select
+using (bucket_id = 'barbershop-images');
+```
+
+### 3) Rodar com dart-define
+
+PowerShell:
+```
+$env:SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
+$env:SUPABASE_ANON_KEY="YOUR_ANON_KEY"
+./scripts/run_debug.ps1
+```
+
+Ou build:
+```
+./scripts/build_debug_apk.ps1
+```

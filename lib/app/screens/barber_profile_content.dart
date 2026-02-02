@@ -1,0 +1,788 @@
+﻿import 'dart:io';
+
+import 'package:agendamento_app/app/models/monthly_plan.dart';
+import 'package:agendamento_app/app/models/service_item.dart';
+import 'package:agendamento_app/app/screens/map_picker_page.dart';
+import 'package:agendamento_app/app/services/app_firestore_service.dart';
+import 'package:agendamento_app/app/services/supabase_storage_service.dart';
+import 'package:agendamento_app/app/utils/availability_utils.dart';
+import 'package:agendamento_app/app/utils/map_utils.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
+
+class BarberProfileContent extends StatefulWidget {
+  const BarberProfileContent({super.key});
+
+  @override
+  State<BarberProfileContent> createState() => _BarberProfileContentState();
+}
+
+class _ServiceFormItem {
+  final TextEditingController nameController;
+  final TextEditingController priceController;
+
+  _ServiceFormItem({String? name, String? price})
+      : nameController = TextEditingController(text: name),
+        priceController = TextEditingController(text: price);
+
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+  }
+}
+
+class _PlanFormItem {
+  final TextEditingController nameController;
+  final TextEditingController priceController;
+  final TextEditingController servicesController;
+
+  _PlanFormItem({String? name, String? price, String? services})
+      : nameController = TextEditingController(text: name),
+        priceController = TextEditingController(text: price),
+        servicesController = TextEditingController(text: services);
+
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+    servicesController.dispose();
+  }
+}
+
+class _BarberProfileContentState extends State<BarberProfileContent> {
+  final AppFirestoreService _firestoreService = AppFirestoreService();
+  final SupabaseStorageService _storageService = SupabaseStorageService();
+  final TextEditingController _nomeController = TextEditingController();
+  final TextEditingController _sobrenomeController = TextEditingController();
+  final TextEditingController _telefoneController = TextEditingController();
+
+  final TextEditingController _shopNameController = TextEditingController();
+  final TextEditingController _bairroController = TextEditingController();
+  final TextEditingController _cidadeController = TextEditingController();
+  final TextEditingController _ruaController = TextEditingController();
+  final TextEditingController _numeroController = TextEditingController();
+  final TextEditingController _cepController = TextEditingController();
+  final TextEditingController _pixKeyController = TextEditingController();
+  final TextEditingController _pixBankController = TextEditingController();
+  final TextEditingController _locationLabelController =
+      TextEditingController();
+  String _pixKeyType = 'telefone';
+
+  final List<_ServiceFormItem> _serviceItems = [];
+  final List<_PlanFormItem> _planItems = [];
+  List<int> _selectedDays = [1, 2, 3, 4, 5, 6];
+  int _startHour = 9;
+  int _endHour = 18;
+  double? _locationLat;
+  double? _locationLng;
+  bool _isGeocoding = false;
+
+  String? _currentImageUrl;
+  File? _selectedImage;
+  bool _loading = true;
+
+  Map<String, dynamic> _currentEnderecoMap() {
+    return {
+      'bairro': _bairroController.text.trim(),
+      'cidade': _cidadeController.text.trim(),
+      'rua': _ruaController.text.trim(),
+      'numero': _numeroController.text.trim(),
+      'cep': _cepController.text.trim(),
+    };
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _sobrenomeController.dispose();
+    _telefoneController.dispose();
+    _shopNameController.dispose();
+    _bairroController.dispose();
+    _cidadeController.dispose();
+    _ruaController.dispose();
+    _numeroController.dispose();
+    _cepController.dispose();
+    _pixKeyController.dispose();
+    _pixBankController.dispose();
+    _locationLabelController.dispose();
+    for (final item in _serviceItems) {
+      item.dispose();
+    }
+    for (final item in _planItems) {
+      item.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final profile = await _firestoreService.getUserProfile(user.uid);
+    final shop = await _firestoreService.getBarbershopByOwner(user.uid);
+
+    if (!mounted) return;
+
+    if (profile != null) {
+      _nomeController.text = profile.nome;
+      _sobrenomeController.text = profile.sobrenome;
+      _telefoneController.text = profile.telefone;
+    }
+
+    if (shop != null) {
+      _shopNameController.text = shop.nome;
+      _bairroController.text = shop.endereco['bairro'] ?? '';
+      _cidadeController.text = shop.endereco['cidade'] ?? '';
+      _ruaController.text = shop.endereco['rua'] ?? '';
+      _numeroController.text = shop.endereco['numero'] ?? '';
+      _cepController.text = shop.endereco['cep'] ?? '';
+      _currentImageUrl = shop.imageUrl;
+      _pixKeyController.text = shop.pixKey ?? '';
+      _pixBankController.text = shop.pixBankName ?? '';
+      _pixKeyType = shop.pixKeyType ?? 'telefone';
+      _locationLat = shop.latitude;
+      _locationLng = shop.longitude;
+      _locationLabelController.text = shop.locationLabel ?? '';
+
+      _serviceItems.clear();
+      for (final service in shop.services) {
+        _serviceItems.add(
+          _ServiceFormItem(
+            name: service.nome,
+            price: service.preco.toStringAsFixed(2),
+          ),
+        );
+      }
+      if (_serviceItems.isEmpty) {
+        _serviceItems.add(_ServiceFormItem());
+      }
+
+      _planItems.clear();
+      for (final plan in shop.monthlyPlans) {
+        _planItems.add(
+          _PlanFormItem(
+            name: plan.name,
+            price: plan.price.toStringAsFixed(2),
+            services: plan.services.join(', '),
+          ),
+        );
+      }
+
+      final days = shop.availability.keys
+          .map((key) => int.tryParse(key))
+          .whereType<int>()
+          .toList();
+      if (days.isNotEmpty) {
+        _selectedDays = days;
+        final firstDay = shop.availability[days.first.toString()] ?? [];
+        final hourInts = firstDay.map((h) => int.tryParse(h) ?? 0).toList();
+        if (hourInts.isNotEmpty) {
+          hourInts.sort();
+          _startHour = hourInts.first;
+          _endHour = hourInts.last;
+        }
+      }
+    } else {
+      _serviceItems.add(_ServiceFormItem());
+    }
+
+    setState(() {
+      _loading = false;
+    });
+  }
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      setState(() {
+        _selectedImage = File(picked.path);
+      });
+    }
+  }
+
+  List<ServiceItem> _buildServices() {
+    final services = <ServiceItem>[];
+    for (final item in _serviceItems) {
+      final name = item.nameController.text.trim();
+      final priceText = item.priceController.text.trim();
+      if (name.isEmpty || priceText.isEmpty) continue;
+      final price = double.tryParse(priceText.replaceAll(',', '.')) ?? 0.0;
+      services.add(ServiceItem(nome: name, preco: price));
+    }
+    return services;
+  }
+
+  List<MonthlyPlan> _buildMonthlyPlans() {
+    final plans = <MonthlyPlan>[];
+    for (final item in _planItems) {
+      final name = item.nameController.text.trim();
+      final priceText = item.priceController.text.trim();
+      if (name.isEmpty || priceText.isEmpty) continue;
+      final price = double.tryParse(priceText.replaceAll(',', '.')) ?? 0.0;
+      final services = item.servicesController.text
+          .split(',')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      plans.add(
+        MonthlyPlan(
+          id: name.toLowerCase().replaceAll(' ', '_'),
+          name: name,
+          price: price,
+          services: services,
+        ),
+      );
+    }
+    return plans;
+  }
+
+  Future<void> _saveProfile() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    await _firestoreService.updateUserProfile(
+      uid: user.uid,
+      nome: _nomeController.text.trim(),
+      sobrenome: _sobrenomeController.text.trim(),
+      telefone: _telefoneController.text.trim(),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Perfil atualizado.')),
+    );
+  }
+
+  Future<void> _saveBarbershop() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    BarbershopImageUploadResult? uploadResult;
+    if (_selectedImage != null) {
+      try {
+        uploadResult = await _storageService.uploadBarbershopImage(
+          userId: user.uid,
+          file: _selectedImage!,
+        );
+        _currentImageUrl = uploadResult.imageUrl;
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao enviar imagem: ${e.toString()}')),
+        );
+        return;
+      }
+    }
+    final endereco = {
+      'bairro': _bairroController.text.trim(),
+      'cidade': _cidadeController.text.trim(),
+      'rua': _ruaController.text.trim(),
+      'numero': _numeroController.text.trim(),
+      'cep': _cepController.text.trim(),
+    };
+
+    final availability = buildAvailability(
+      days: _selectedDays,
+      startHour: _startHour,
+      endHour: _endHour,
+    );
+
+    await _firestoreService.updateBarbershop(
+      ownerId: user.uid,
+      nome: _shopNameController.text.trim(),
+      telefone: _telefoneController.text.trim(),
+      endereco: endereco,
+      location: (_locationLat != null && _locationLng != null)
+          ? {
+              'lat': _locationLat!,
+              'lng': _locationLng!,
+            }
+          : null,
+      locationLabel: _locationLabelController.text.trim(),
+      imageUrl: uploadResult?.imageUrl,
+      imageThumbUrl: uploadResult?.thumbUrl,
+      services: _buildServices(),
+      availability: availability,
+      monthlyPlans: _buildMonthlyPlans(),
+      pixKey: _pixKeyController.text.trim().isEmpty
+          ? null
+          : _pixKeyController.text.trim(),
+      pixKeyType: _pixKeyType,
+      pixBankName: _pixBankController.text.trim().isEmpty
+          ? null
+          : _pixBankController.text.trim(),
+    );
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Barbearia atualizada.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            colorScheme.surface,
+            colorScheme.primary.withValues(alpha: 0.08),
+          ],
+        ),
+      ),
+      child: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          const Text(
+            'Dados pessoais',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 3),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _nomeController,
+            decoration: const InputDecoration(labelText: 'Nome'),
+          ),
+          const SizedBox(height: 3),
+          TextField(
+            controller: _sobrenomeController,
+            decoration: const InputDecoration(labelText: 'Sobrenome'),
+          ),
+          const SizedBox(height: 3),
+          TextField(
+            controller: _telefoneController,
+            decoration: const InputDecoration(labelText: 'Telefone'),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _saveProfile,
+            child: const Text('Salvar perfil'),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Barbearia',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _shopNameController,
+            decoration: const InputDecoration(labelText: 'Nome da barbearia'),
+          ),
+          const SizedBox(height: 3),
+          TextField(
+            controller: _bairroController,
+            decoration: const InputDecoration(labelText: 'Bairro'),
+          ),
+          const SizedBox(height: 3),
+          TextField(
+            controller: _cidadeController,
+            decoration: const InputDecoration(labelText: 'Cidade'),
+          ),
+          const SizedBox(height: 3),
+          TextField(
+            controller: _ruaController,
+            decoration: const InputDecoration(labelText: 'Rua'),
+          ),
+          const SizedBox(height: 3),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _numeroController,
+                  decoration: const InputDecoration(labelText: 'Número'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _cepController,
+                  decoration: const InputDecoration(labelText: 'CEP'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          const SizedBox(height: 6),
+          OutlinedButton.icon(
+            onPressed: () async {
+              if (!MapUtils.hasValidAddress(_currentEnderecoMap())) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Preencha o endereço antes de selecionar o local.',
+                    ),
+                  ),
+                );
+                return;
+              }
+              LatLng initial;
+              if (_locationLat != null && _locationLng != null) {
+                initial = LatLng(_locationLat!, _locationLng!);
+              } else {
+                final address = MapUtils.buildAddress(_currentEnderecoMap());
+                await _setGeocoding(true);
+                final geocoded = await MapUtils.geocodeAddress(address);
+                await _setGeocoding(false);
+                if (geocoded == null) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Não foi possível localizar o endereço. Verifique e tente novamente.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                initial = geocoded;
+              }
+              final result = await Navigator.push<LatLng>(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      MapPickerPage(initialPosition: initial),
+                ),
+              );
+              if (result != null) {
+                setState(() {
+                  _locationLat = result.latitude;
+                  _locationLng = result.longitude;
+                });
+              }
+            },
+            icon: const Icon(Icons.place_outlined),
+            label: const Text('Selecionar local exato no mapa'),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _locationLabelController,
+            decoration:
+                const InputDecoration(labelText: 'Referência do local (opcional)'),
+          ),
+          if (_locationLat != null && _locationLng != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0),
+              child: Text(
+                'Local selecionado: '
+                '${_locationLat!.toStringAsFixed(6)}, '
+                '${_locationLng!.toStringAsFixed(6)}',
+                style: TextStyle(
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
+          const Text(
+            'Chave Pix',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _pixKeyController,
+            decoration: const InputDecoration(labelText: 'Chave'),
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            initialValue: _pixKeyType,
+            decoration: const InputDecoration(labelText: 'Tipo de chave Pix'),
+            items: const [
+              DropdownMenuItem(value: 'telefone', child: Text('Telefone')),
+              DropdownMenuItem(value: 'email', child: Text('E-mail')),
+              DropdownMenuItem(value: 'cpf', child: Text('CPF')),
+              DropdownMenuItem(value: 'cnpj', child: Text('CNPJ')),
+              DropdownMenuItem(value: 'aleatoria', child: Text('Aleatória')),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() {
+                _pixKeyType = value;
+              });
+            },
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _pixBankController,
+            decoration: const InputDecoration(labelText: 'Banco (opcional)'),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Planos mensais',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._buildPlanFields(),
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _planItems.add(_PlanFormItem());
+              });
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Adicionar plano'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _pickImage,
+            icon: const Icon(Icons.image),
+            label: Text(_selectedImage == null
+                ? 'Atualizar imagem'
+                : 'Imagem selecionada'),
+          ),
+          if (_selectedImage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child:
+                    Image.file(_selectedImage!, height: 140, fit: BoxFit.cover),
+              ),
+            )
+          else if (_currentImageUrl != null && _currentImageUrl!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(_currentImageUrl!,
+                    height: 140, fit: BoxFit.cover),
+              ),
+            ),
+          const SizedBox(height: 12),
+          const Text(
+            'Serviços e preços',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._buildServiceFields(),
+          TextButton.icon(
+            onPressed: () {
+              setState(() {
+                _serviceItems.add(_ServiceFormItem());
+              });
+            },
+            icon: const Icon(Icons.add),
+            label: const Text('Adicionar serviço'),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Horários de funcionamento',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            children: List.generate(7, (index) {
+              final day = index + 1;
+              final label =
+                  ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'][index];
+              final isSelected = _selectedDays.contains(day);
+              return FilterChip(
+                label: Text(
+                  label,
+                  style: TextStyle(color: colorScheme.onSurface),
+                ),
+                selected: isSelected,
+                selectedColor: colorScheme.primary.withValues(alpha: 0.18),
+                checkmarkColor: colorScheme.primary,
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _selectedDays.add(day);
+                    } else {
+                      _selectedDays.remove(day);
+                    }
+                  });
+                },
+              );
+            }),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _startHour,
+                  decoration: const InputDecoration(labelText: 'Início'),
+                  items: List.generate(24, (index) {
+                    return DropdownMenuItem(
+                      value: index,
+                      child: Text('${index.toString().padLeft(2, '0')}:00'),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _startHour = value;
+                      if (_endHour < _startHour) {
+                        _endHour = _startHour;
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonFormField<int>(
+                  initialValue: _endHour,
+                  decoration: const InputDecoration(labelText: 'Fim'),
+                  items: List.generate(24, (index) {
+                    return DropdownMenuItem(
+                      value: index,
+                      child: Text('${index.toString().padLeft(2, '0')}:00'),
+                    );
+                  }),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() {
+                      _endHour = value;
+                      if (_endHour < _startHour) {
+                        _startHour = _endHour;
+                      }
+                    });
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton(
+            onPressed: _saveBarbershop,
+            child: const Text('Salvar barbearia'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildServiceFields() {
+    final widgets = <Widget>[];
+    for (int i = 0; i < _serviceItems.length; i++) {
+      final item = _serviceItems[i];
+      widgets.add(
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: item.nameController,
+                decoration: const InputDecoration(labelText: 'Serviço'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: item.priceController,
+                decoration: const InputDecoration(labelText: 'Preço'),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: () {
+                setState(() {
+                  item.dispose();
+                  _serviceItems.removeAt(i);
+                });
+              },
+            ),
+          ],
+        ),
+      );
+      widgets.add(const SizedBox(height: 8));
+    }
+    return widgets;
+  }
+
+  Future<void> _setGeocoding(bool value) async {
+    if (!mounted) return;
+    setState(() {
+      _isGeocoding = value;
+    });
+    if (value) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Buscando endereço...'),
+              ],
+            ),
+          );
+        },
+      );
+    } else {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+    }
+  }
+
+  List<Widget> _buildPlanFields() {
+    final widgets = <Widget>[];
+    for (int i = 0; i < _planItems.length; i++) {
+      final item = _planItems[i];
+      widgets.add(
+        Column(
+          children: [
+            TextField(
+              controller: item.nameController,
+              decoration: const InputDecoration(labelText: 'Nome do plano'),
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: item.priceController,
+              decoration: const InputDecoration(labelText: 'Valor do plano'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 6),
+            TextField(
+              controller: item.servicesController,
+              decoration: const InputDecoration(
+                labelText: 'Serviços do plano (separados por vírgula)',
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: () {
+                  setState(() {
+                    item.dispose();
+                    _planItems.removeAt(i);
+                  });
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+      widgets.add(const SizedBox(height: 8));
+    }
+    return widgets;
+  }
+}
+

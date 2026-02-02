@@ -1,0 +1,35 @@
+﻿{
+    "flutter":  {
+                    "platforms":  {
+                                      "android":  {
+                                                      "default":  {
+                                                                      "projectId":  "barber-app-e2a38",
+                                                                      "appId":  "1:658526000610:android:c0d89d5e92d4655a81d5bb",
+                                                                      "fileOutput":  "android/app/google-services.json"
+                                                                  }
+                                                  },
+                                      "dart":  {
+                                                   "lib/firebase_options.dart":  {
+                                                                                     "projectId":  "barber-app-e2a38",
+                                                                                     "configurations":  {
+                                                                                                            "android":  "1:658526000610:android:c0d89d5e92d4655a81d5bb",
+                                                                                                            "ios":  "1:658526000610:ios:bd2801b1699b366981d5bb",
+                                                                                                            "macos":  "1:658526000610:ios:fe24f21104d6d6ec81d5bb",
+                                                                                                            "web":  "1:658526000610:web:ec4d5b8960810f1c81d5bb",
+                                                                                                            "windows":  "1:658526000610:web:900db09111d2c08081d5bb"
+                                                                                                        }
+                                                                                 }
+                                               }
+                                  }
+                },
+    "firestore":  {
+                      "indexes":  "firestore.indexes.json",
+                      "rules":  "firestore.rules"
+                  },
+    "storage":  {
+                    "rules":  "storage.rules"
+                },
+    "functions":  {
+                      "source":  "functions"
+                  }
+}

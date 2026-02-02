@@ -1,6 +1,5 @@
-import 'package:agendamento_app/_colors/my_colors.dart';
-import 'package:agendamento_app/app/screens/home_page.dart';
-import 'package:agendamento_app/app/screens/register_page.dart';
+﻿import 'package:agendamento_app/app/screens/register_page.dart';
+import 'package:agendamento_app/app/screens/role_gate_page.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'reset_password_page.dart';
@@ -17,90 +16,118 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _passwordController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final _formKey = GlobalKey<FormState>();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
+  bool _navigating = false;
 
   // Função reutilizável de validação
   String? validateField(String? value, String fieldName, {int minLength = 1}) {
-    if (value == null || value.isEmpty) {
-      return "$fieldName não pode ser vazio";
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return 'Informe $fieldName.';
     }
-    if (value.length < minLength) {
-      return "$fieldName deve ter no mínimo $minLength caracteres";
+    if (trimmed.length < minLength) {
+      return '$fieldName deve ter pelo menos $minLength caracteres.';
     }
     return null;
   }
 
   Future<void> _login() async {
+    if (_isLoading) return;
     if (_formKey.currentState?.validate() ?? false) {
+      setState(() {
+        _isLoading = true;
+      });
       try {
+        final email = _emailController.text.trim();
+        final password = _passwordController.text;
         UserCredential userCredential = await _auth.signInWithEmailAndPassword(
-          email: _emailController.text,
-          password: _passwordController.text,
+          email: email,
+          password: password,
         );
 
         if (userCredential.user != null) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
-          );
+          if (!mounted || _navigating) return;
+          _navigating = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const RoleGatePage()),
+            );
+          });
         }
       } on FirebaseAuthException catch (e) {
-        String errorMessage = 'Erro ao fazer login';
+        String errorMessage = 'Erro ao fazer login.';
         switch (e.code) {
           case 'user-not-found':
-            errorMessage = 'Usuário não encontrado. Verifique seu e-mail.';
+            errorMessage = 'Usuário não encontrado. Verifique o e-mail.';
             break;
           case 'wrong-password':
-            errorMessage = 'Senha incorreta. Verifique sua senha.';
+            errorMessage = 'Senha inválida. Tente novamente.';
             break;
           case 'invalid-email':
-            errorMessage = 'E-mail inválido. Verifique seu e-mail.';
+            errorMessage = 'E-mail inválido. Verifique o formato.';
             break;
           case 'too-many-requests':
             errorMessage =
-                'Muitas tentativas de login. Tente novamente mais tarde.';
+                'Muitas tentativas. Tente novamente em alguns minutos.';
             break;
           case 'operation-not-allowed':
             errorMessage =
-                'Operação não permitida. Verifique suas configurações.';
+                'Operação não permitida. Contate o suporte.';
             break;
           case 'network-request-failed':
-            errorMessage = 'Falha na rede. Verifique sua conexão.';
+            errorMessage = 'Sem conexão. Verifique sua internet.';
+            break;
+          case 'invalid-credential':
+            errorMessage = 'E-mail ou senha inválidos.';
             break;
           default:
             errorMessage = 'Erro desconhecido: ${e.message}';
             break;
         }
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(errorMessage),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao fazer login: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: MyColors.azulEscuroTon01,
+      backgroundColor: colorScheme.surface,
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  MyColors.azulClaroTon01,
-                  MyColors.azulClaroTon03,
+                  colorScheme.surface,
+                  colorScheme.primary.withValues(alpha: 0.08),
                 ],
               ),
             ),
@@ -116,13 +143,13 @@ class _LoginPageState extends State<LoginPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Image.asset("assets/logo1.png", height: 190),
-                      const Text(
-                        "Login",
+                      Text(
+                        'BarberShop',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 38,
+                          fontSize: 34,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -136,15 +163,26 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(height: 5),
                       TextFormField(
                         controller: _passwordController,
-                        obscureText: true,
-                        decoration: getAuthenticationInputDecoration("Senha"),
+                        obscureText: _obscurePassword,
+                        decoration: getAuthenticationInputDecoration(
+                          "Senha",
+                          isPassword: true,
+                        ),
                         validator: (value) =>
                             validateField(value, "Senha", minLength: 8),
                       ),
                       const SizedBox(height: 32),
                       ElevatedButton(
-                        onPressed: _login,
-                        child: const Text("Entrar"),
+                        onPressed: _isLoading ? null : _login,
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text("Entrar"),
                       ),
                       const SizedBox(height: 10),
                       TextButton(
@@ -156,7 +194,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           );
                         },
-                        child: const Text("Redefinir Senha"),
+                        child: const Text('Redefinir senha'),
                       ),
                       const SizedBox(height: 10),
                       TextButton(
@@ -168,7 +206,7 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                           );
                         },
-                        child: const Text("Criar uma conta"),
+                        child: const Text('Criar uma conta'),
                       ),
                     ],
                   ),
@@ -181,22 +219,24 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  InputDecoration getAuthenticationInputDecoration(String label) {
+  InputDecoration getAuthenticationInputDecoration(String label,
+      {bool isPassword = false}) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: MyColors.azulEscuroTon01),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: const BorderSide(color: MyColors.azulEscuroTon01),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: const BorderSide(color: MyColors.azulEscuroTon01),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: const BorderSide(color: MyColors.azulEscuroTon01),
-      ),
+      suffixIcon: isPassword
+          ? IconButton(
+              onPressed: () {
+                setState(() {
+                  _obscurePassword = !_obscurePassword;
+                });
+              },
+              icon: Icon(
+                _obscurePassword ? Icons.visibility : Icons.visibility_off,
+              ),
+            )
+          : null,
     );
   }
 }
+
+

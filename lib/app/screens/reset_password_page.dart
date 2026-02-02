@@ -1,4 +1,3 @@
-import 'package:agendamento_app/_colors/my_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -31,20 +30,24 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
     try {
       await _auth.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('E-mail de redefinição de senha enviado')),
       );
       Navigator.pop(context);
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
             content:
                 Text('Erro ao enviar e-mail de redefinição: ${e.toString()}')),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -60,18 +63,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: MyColors.azulEscuroTon01,
+      backgroundColor: colorScheme.surface,
       body: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  MyColors.azulClaroTon01,
-                  MyColors.azulClaroTon03,
+                  colorScheme.surface,
+                  colorScheme.primary.withValues(alpha: 0.08),
                 ],
               ),
             ),
@@ -87,13 +92,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Image.asset("assets/logo1.png", height: 190),
-                      const Text(
-                        "Redefinir Senha",
+                      Text(
+                        'Redefinir senha',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: 30,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black,
+                          color: colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -107,8 +112,8 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       ElevatedButton(
                         onPressed: _isLoading ? null : _resetPassword,
                         child: _isLoading
-                            ? const CircularProgressIndicator(
-                                color: Colors.white,
+                            ? CircularProgressIndicator(
+                                color: Theme.of(context).colorScheme.onPrimary,
                               )
                             : const Text("Enviar E-mail de Redefinição"),
                       ),
@@ -133,19 +138,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   InputDecoration getAuthenticationInputDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: MyColors.azulEscuroTon01),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: const BorderSide(color: MyColors.azulEscuroTon01),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: const BorderSide(color: MyColors.azulEscuroTon01),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10.0),
-        borderSide: const BorderSide(color: MyColors.azulEscuroTon01),
-      ),
     );
   }
 }

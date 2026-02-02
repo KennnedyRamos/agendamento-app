@@ -1,6 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="agendamento_app"
+        android:label="Barberky"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

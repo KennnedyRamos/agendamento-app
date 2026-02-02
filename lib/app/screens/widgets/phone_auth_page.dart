@@ -57,7 +57,7 @@ class _PhoneAuthPage extends State<PhoneAuthPage> {
       },
       verificationFailed: (FirebaseAuthException e) {
         // Handle the error
-        print('Verification failed: ${e.message}');
+        debugPrint('Verification failed: ${e.message}');
       },
       codeSent: (String verificationId, int? resendToken) {
         // Code sent successfully
@@ -87,7 +87,7 @@ class _PhoneAuthPage extends State<PhoneAuthPage> {
       // Optionally, send a confirmation message here
     } catch (e) {
       // Handle sign-in error
-      print('Sign-in failed: ${e.toString()}');
+      debugPrint('Sign-in failed: ${e.toString()}');
     }
   }
 }

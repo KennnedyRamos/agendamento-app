@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "658526000610",
+    "project_id": "barber-app-e2a38",
+    "storage_bucket": "barber-app-e2a38.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:658526000610:android:c0d89d5e92d4655a81d5bb",
+        "android_client_info": {
+          "package_name": "com.ramos.kennedy.barberapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABJaWwa-eA3NO3ZQg6lmrlTOuC3Jrvf-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:658526000610:android:8fa93fcb8df5683a81d5bb",
+        "android_client_info": {
+          "package_name": "ramos.kennedy.appbarber"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABJaWwa-eA3NO3ZQg6lmrlTOuC3Jrvf-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

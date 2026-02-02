@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:agendamento_app/app/models/cadastro_cliente_models.dart';
+import 'package:flutter/foundation.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -9,7 +10,7 @@ class FirestoreService {
     try {
       await _db.collection('clientes').doc(cliente.id).set(cliente.toMap());
     } catch (e) {
-      print('Erro ao salvar cliente: $e');
+      debugPrint('Erro ao salvar cliente: $e');
       throw Exception('Erro ao salvar os dados do cliente.');
     }
   }
@@ -25,7 +26,7 @@ class FirestoreService {
         return null;
       }
     } catch (e) {
-      print('Erro ao buscar cliente: $e');
+      debugPrint('Erro ao buscar cliente: $e');
       return null;
     }
   }
@@ -39,7 +40,7 @@ class FirestoreService {
             doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
-      print('Erro ao buscar clientes: $e');
+      debugPrint('Erro ao buscar clientes: $e');
       return [];
     }
   }
