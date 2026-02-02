@@ -39,8 +39,18 @@ class _LoginPageState extends State<LoginPage> {
         _isLoading = true;
       });
       try {
-        final email = _emailController.text.trim();
+        final email = _emailController.text.trim().toLowerCase();
         final password = _passwordController.text;
+        if (password.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Informe sua senha para continuar.'),
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+          );
+          return;
+        }
         UserCredential userCredential = await _auth.signInWithEmailAndPassword(
           email: email,
           password: password,
@@ -58,39 +68,10 @@ class _LoginPageState extends State<LoginPage> {
           });
         }
       } on FirebaseAuthException catch (e) {
-        String errorMessage = 'Erro ao fazer login.';
-        switch (e.code) {
-          case 'user-not-found':
-            errorMessage = 'Usuário não encontrado. Verifique o e-mail.';
-            break;
-          case 'wrong-password':
-            errorMessage = 'Senha inválida. Tente novamente.';
-            break;
-          case 'invalid-email':
-            errorMessage = 'E-mail inválido. Verifique o formato.';
-            break;
-          case 'too-many-requests':
-            errorMessage =
-                'Muitas tentativas. Tente novamente em alguns minutos.';
-            break;
-          case 'operation-not-allowed':
-            errorMessage =
-                'Operação não permitida. Contate o suporte.';
-            break;
-          case 'network-request-failed':
-            errorMessage = 'Sem conexão. Verifique sua internet.';
-            break;
-          case 'invalid-credential':
-            errorMessage = 'E-mail ou senha inválidos.';
-            break;
-          default:
-            errorMessage = 'Erro desconhecido: ${e.message}';
-            break;
-        }
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(errorMessage),
+            content: Text(_mapAuthError(e)),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -109,6 +90,29 @@ class _LoginPageState extends State<LoginPage> {
           });
         }
       }
+    }
+  }
+
+  String _mapAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'user-not-found':
+        return 'E-mail não cadastrado. Verifique ou crie uma conta.';
+      case 'wrong-password':
+        return 'Senha incorreta. Tente novamente.';
+      case 'invalid-email':
+        return 'E-mail inválido. Verifique o formato.';
+      case 'user-disabled':
+        return 'Conta desativada. Entre em contato com o suporte.';
+      case 'too-many-requests':
+        return 'Muitas tentativas. Aguarde e tente novamente.';
+      case 'operation-not-allowed':
+        return 'Login desativado. Entre em contato com o suporte.';
+      case 'network-request-failed':
+        return 'Sem conexão com a internet.';
+      case 'invalid-credential':
+        return 'E-mail ou senha inválidos.';
+      default:
+        return 'Não foi possível fazer login. ${e.message ?? ''}'.trim();
     }
   }
 
