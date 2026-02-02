@@ -198,6 +198,9 @@ class _RegisterPageState extends State<RegisterPage> {
   Future<void> _register() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    final email = _emailController.text.trim().toLowerCase();
+    final password = _passwordController.text;
+
     if (_passwordController.text != _confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("As senhas não correspondem")),
@@ -221,9 +224,22 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     try {
+      final methods = await _auth.fetchSignInMethodsForEmail(email);
+      if (methods.isNotEmpty) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Este e-mail já está cadastrado. Faça login para continuar.',
+            ),
+          ),
+        );
+        return;
+      }
+
       final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
+        email: email,
+        password: password,
       );
 
       final user = userCredential.user;
@@ -232,7 +248,7 @@ class _RegisterPageState extends State<RegisterPage> {
       final profile = UserProfile(
         uid: user.uid,
         role: _isBarber ? 'barber' : 'client',
-        email: _emailController.text.trim(),
+        email: email,
         nome: _nameController.text.trim(),
         sobrenome: _surnameController.text.trim(),
         telefone: _phoneController.text.trim(),
@@ -299,11 +315,35 @@ class _RegisterPageState extends State<RegisterPage> {
         context,
         MaterialPageRoute(builder: (context) => const RoleGatePage()),
       );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_mapAuthError(e))),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao criar conta: ${e.toString()}')),
+        SnackBar(content: Text('Erro inesperado: ${e.toString()}')),
       );
+    }
+  }
+
+  String _mapAuthError(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'email-already-in-use':
+        return 'Este e-mail já está cadastrado.';
+      case 'invalid-email':
+        return 'E-mail inválido. Verifique e tente novamente.';
+      case 'weak-password':
+        return 'Senha fraca. Use pelo menos 8 caracteres.';
+      case 'operation-not-allowed':
+        return 'Cadastro desativado. Entre em contato com o suporte.';
+      case 'network-request-failed':
+        return 'Sem conexão com a internet. Tente novamente.';
+      case 'too-many-requests':
+        return 'Muitas tentativas. Aguarde e tente novamente.';
+      default:
+        return 'Não foi possível criar a conta. ${e.message ?? ''}'.trim();
     }
   }
 
