@@ -358,18 +358,6 @@ class BarbershopProfilePage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Sem avaliações ainda.'),
-                      const SizedBox(height: 6),
-                      TextButton.icon(
-                        onPressed: openReviewFlow,
-                        icon: const Icon(Icons.star, size: 18),
-                        label: const Text('Avaliar'),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: const Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
                     ],
                   );
                 }
