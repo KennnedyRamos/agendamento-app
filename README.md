@@ -215,6 +215,7 @@ A aplicação utiliza serviços em nuvem para diferentes responsabilidades:
                       │                 │
                       │ Imagens         │
                       └─────────────────┘
+```
 
                       
 # ✂️ Agendamento App
@@ -584,7 +585,7 @@ Tenho interesse em desenvolvimento de:
 
 * **GitHub:** [KennnedyRamos](https://github.com/KennnedyRamos)
 * **LinkedIn:** [Kennedy Ramos](https://www.linkedin.com/in/kennedy-silva-ramos-566b00150/)
-* **Portfólio:** [Meu Portfólio](https://kennnedyramos.github.io/meu-postifolio-web/)
+* **Portfólio:** [Meu Portfólio](https://kennnedyramos.github.io/)
 
 ---
 
