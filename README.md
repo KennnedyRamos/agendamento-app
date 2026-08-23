@@ -174,108 +174,187 @@ project/
 ├── ios/
 └── pubspec.yaml
 ```
-Organização
-models/ → modelos utilizados pela aplicação;
-screens/ → telas e componentes da interface;
-services/ → serviços responsáveis pela comunicação e regras relacionadas aos agendamentos e banco;
-_colors/ → definição de cores utilizadas na aplicação;
-main.dart → ponto de entrada da aplicação.
-☁️ Arquitetura de serviços
+## 📂 Organização do projeto
+
+A aplicação foi organizada de forma a separar responsabilidades entre modelos, telas, serviços e configurações.
+
+| Diretório / Arquivo | Responsabilidade |
+|---|---|
+| `models/` | Modelos utilizados pela aplicação |
+| `screens/` | Telas e componentes da interface |
+| `services/` | Serviços responsáveis pela comunicação com o banco e pelas regras relacionadas aos agendamentos |
+| `_colors/` | Definição das cores utilizadas na aplicação |
+| `main.dart` | Ponto de entrada da aplicação |
+
+---
+
+## ☁️ Arquitetura de serviços
 
 A aplicação utiliza serviços em nuvem para diferentes responsabilidades:
 
-                ┌─────────────────────┐
-                │    Flutter / Dart   │
-                │     Aplicação       │
-                └──────────┬──────────┘
-                           │
-              ┌────────────┴────────────┐
-              │                         │
-              ▼                         ▼
-     ┌─────────────────┐       ┌─────────────────┐
-     │ Firebase Auth   │       │ Firebase        │
-     │                 │       │ Firestore       │
-     │ Autenticação    │       │ Dados           │
-     └─────────────────┘       └─────────────────┘
-                                     
-                           │
-                           ▼
-                  ┌─────────────────┐
-                  │ Supabase        │
-                  │ Storage         │
-                  │                 │
-                  │ Imagens         │
-                  └─────────────────┘
-🔧 Instalação e execução
-Pré-requisitos
+```text
+                    ┌─────────────────────┐
+                    │    Flutter / Dart   │
+                    │     Aplicação       │
+                    └──────────┬──────────┘
+                               │
+                  ┌────────────┴────────────┐
+                  │                         │
+                  ▼                         ▼
+         ┌─────────────────┐       ┌─────────────────┐
+         │ Firebase Auth   │       │ Firebase        │
+         │                 │       │ Firestore       │
+         │ Autenticação    │       │ Dados           │
+         └─────────────────┘       └─────────────────┘
+                                          
+                               │
+                               ▼
+                      ┌─────────────────┐
+                      │ Supabase        │
+                      │ Storage         │
+                      │                 │
+                      │ Imagens         │
+                      └─────────────────┘
+
+                      
+# ✂️ Agendamento App
+
+Aplicação mobile desenvolvida com **Flutter e Dart** para gerenciamento de agendamentos em barbearias.
+
+O projeto utiliza **Firebase** para autenticação e persistência de dados, além do **Supabase Storage** para armazenamento de imagens.
+
+---
+
+## 🚀 Funcionalidades
+
+* 🔐 Cadastro e autenticação de usuários
+* 📅 Visualização de calendário
+* 🕐 Seleção de horários disponíveis
+* 📌 Criação de agendamentos
+* ❌ Cancelamento de agendamentos
+* 🔄 Gerenciamento da disponibilidade de horários
+* ☁️ Integração com Firebase
+* 🗄️ Armazenamento de imagens com Supabase Storage
+* 📱 Interface desenvolvida em Flutter
+
+---
+
+## 🛠️ Tecnologias utilizadas
+
+| Tecnologia                  | Utilização                          |
+| --------------------------- | ----------------------------------- |
+| **Flutter**                 | Desenvolvimento da aplicação mobile |
+| **Dart**                    | Linguagem de programação            |
+| **Firebase Authentication** | Autenticação de usuários            |
+| **Cloud Firestore**         | Persistência dos dados              |
+| **Supabase Storage**        | Armazenamento de imagens            |
+| **Android Studio**          | Ambiente de desenvolvimento         |
+| **Git / GitHub**            | Versionamento do projeto            |
+
+---
+
+# 🔧 Instalação e execução
+
+## 📋 Pré-requisitos
 
 Antes de executar o projeto, é necessário possuir:
 
-Flutter instalado;
-Dart;
-Android Studio ou ambiente equivalente;
-Emulador Android ou dispositivo físico;
-Conta/projeto configurado no Firebase;
-Configuração do Supabase caso sejam utilizadas as funcionalidades de armazenamento de imagens.
-1. Clone o repositório
+* Flutter instalado
+* Dart
+* Android Studio ou ambiente equivalente
+* Emulador Android ou dispositivo físico
+* Conta/projeto configurado no Firebase
+* Projeto configurado no Supabase, caso sejam utilizadas as funcionalidades de armazenamento de imagens
+
+---
+
+## 1. 📥 Clone o repositório
+
+```bash
 git clone https://github.com/KennnedyRamos/agendamento-app.git
+```
 
-Entre na pasta:
+Entre na pasta do projeto:
 
+```bash
 cd agendamento-app
-2. Instale as dependências
+```
+
+---
+
+## 2. 📦 Instale as dependências
 
 Execute:
 
+```bash
 flutter pub get
-🔥 3. Configure o Firebase
+```
+
+---
+
+## 3. 🔥 Configure o Firebase
 
 Crie ou utilize um projeto no Firebase e configure a aplicação Flutter.
 
 O projeto utiliza:
 
-Firebase Authentication;
-Firebase Firestore.
+* **Firebase Authentication**
+* **Firebase Cloud Firestore**
 
 Configure as informações necessárias no projeto Flutter.
 
 O arquivo relacionado à configuração do Firebase é:
 
+```text
 lib/firebase_options.dart
+```
 
-⚠️ Nunca publique credenciais, chaves privadas ou informações sensíveis no repositório.
+> ⚠️ **Atenção:** nunca publique credenciais, chaves privadas ou outras informações sensíveis no repositório.
 
-🗄️ 4. Configure o Supabase Storage
+---
 
-O projeto possui configuração para utilização do Supabase Storage para armazenamento de imagens.
+## 4. 🗄️ Configure o Supabase Storage
 
-Bucket
+O projeto possui configuração para utilização do **Supabase Storage** para armazenamento de imagens.
+
+### 🪣 Bucket
 
 O bucket utilizado é:
 
+```text
 barbershop-images
+```
 
-Configuração documentada:
+### ⚙️ Configuração
 
-Public: ON
-MIME types permitidos:
-image/jpeg
-image/png
-image/webp
-Limite de arquivo: 2 MB
-Policies do Storage
+| Configuração          | Valor        |
+| --------------------- | ------------ |
+| **Public**            | ON           |
+| **MIME Type**         | `image/jpeg` |
+| **MIME Type**         | `image/png`  |
+| **MIME Type**         | `image/webp` |
+| **Limite de arquivo** | 2 MB         |
 
-As policies utilizadas para controle das pastas por usuário são:
+---
 
--- INSERT
+### 🔐 Policies do Storage
+
+As policies utilizadas controlam o acesso às pastas de cada usuário.
+
+#### INSERT
+
+```sql
 create policy "barbershops insert (own folder)"
 on storage.objects for insert to authenticated
 with check (
   bucket_id = 'barbershop-images'
   and name like 'barbershops/' || auth.uid() || '/%'
 );
+```
 
--- UPDATE
+#### UPDATE
+
+```sql
 create policy "barbershops update (own folder)"
 on storage.objects for update to authenticated
 using (
@@ -286,63 +365,114 @@ with check (
   bucket_id = 'barbershop-images'
   and name like 'barbershops/' || auth.uid() || '/%'
 );
+```
 
--- SELECT
+#### SELECT
+
+```sql
 create policy "barbershops select (bucket)"
 on storage.objects for select
 using (bucket_id = 'barbershop-images');
-🔐 Configuração com Dart Define
+```
 
-Para executar o projeto utilizando as variáveis do Supabase, podem ser utilizadas variáveis de ambiente através de dart-define.
+---
 
-PowerShell
+## 🔐 Configuração com Dart Define
+
+Para executar o projeto utilizando as variáveis do Supabase, podem ser utilizadas variáveis de ambiente através do `dart-define`.
+
+### Windows PowerShell
+
+Configure as variáveis:
+
+```powershell
 $env:SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
 $env:SUPABASE_ANON_KEY="YOUR_ANON_KEY"
+```
 
+Execute o projeto:
+
+```powershell
 ./scripts/run_debug.ps1
+```
 
-Para gerar o build:
+### 📦 Gerar o build
 
+Para gerar o APK de debug:
+
+```powershell
 ./scripts/build_debug_apk.ps1
+```
 
-⚠️ Substitua os valores de exemplo pelas configurações do seu próprio projeto. Não publique chaves privadas no GitHub.
+> ⚠️ **Atenção:** substitua os valores de exemplo pelas configurações do seu próprio projeto.
+>
+> Nunca publique chaves privadas ou outras informações sensíveis no GitHub.
 
-▶️ 5. Execute a aplicação
+---
 
-Depois de configurar as dependências:
+## 5. ▶️ Execute a aplicação
 
+Depois de configurar todas as dependências:
+
+```bash
 flutter run
-📱 Como utilizar
-Cadastro
+```
 
-O usuário cria uma conta utilizando e-mail e senha.
+---
 
-Login
+# 📱 Como utilizar
+
+## 👤 Cadastro
+
+O usuário pode criar uma conta utilizando:
+
+* E-mail
+* Senha
+
+---
+
+## 🔑 Login
 
 Após o cadastro, o usuário pode acessar a aplicação utilizando suas credenciais.
 
-Agendamento
-Acesse o calendário;
-Selecione uma data;
-Escolha um horário disponível;
-Confirme o agendamento.
-Cancelamento
+---
+
+## 📅 Agendamento
+
+Para realizar um agendamento:
+
+1. Acesse o calendário.
+2. Selecione uma data.
+3. Escolha um horário disponível.
+4. Confirme o agendamento.
+
+---
+
+## ❌ Cancelamento
 
 O usuário pode cancelar um agendamento existente.
 
-Após o cancelamento, o horário é novamente disponibilizado.
+Após o cancelamento, o horário é novamente disponibilizado para novos agendamentos.
 
-🧪 Testes
+---
+
+# 🧪 Testes
 
 Os testes podem ser executados através do comando:
 
+```bash
 flutter test
-📂 Arquivos ignorados
+```
 
-O projeto utiliza .gitignore para evitar o versionamento de arquivos temporários e arquivos gerados pelo ambiente de desenvolvimento.
+---
+
+# 📂 Arquivos ignorados
+
+O projeto utiliza o arquivo `.gitignore` para evitar o versionamento de arquivos temporários e arquivos gerados pelo ambiente de desenvolvimento.
 
 Entre eles:
 
+```gitignore
 *.class
 *.log
 *.pyc
@@ -353,95 +483,170 @@ Entre eles:
 
 .idea/
 .vscode/
-📚 Aprendizados
+```
+
+---
+
+# 📚 Aprendizados
 
 O desenvolvimento deste projeto proporcionou experiência prática em diferentes áreas do desenvolvimento mobile, incluindo:
 
-Desenvolvimento de aplicações com Flutter;
-Programação em Dart;
-Autenticação de usuários;
-Integração com Firebase;
-Persistência de dados utilizando Firestore;
-Integração com serviços externos;
-Gerenciamento de disponibilidade de horários;
-Organização de código;
-Separação entre telas, modelos e serviços;
-Configuração de armazenamento em nuvem;
-Utilização de variáveis de ambiente;
-Execução e geração de builds Flutter.
-🚧 Possíveis evoluções
+* Desenvolvimento de aplicações com Flutter
+* Programação em Dart
+* Autenticação de usuários
+* Integração com Firebase
+* Persistência de dados utilizando Firestore
+* Integração com serviços externos
+* Gerenciamento de disponibilidade de horários
+* Organização de código
+* Separação entre telas, modelos e serviços
+* Configuração de armazenamento em nuvem
+* Utilização de variáveis de ambiente
+* Execução e geração de builds Flutter
 
-Algumas funcionalidades podem ser adicionadas ou aprimoradas futuramente, como:
+---
 
-Notificações de confirmação de agendamento;
-Lembretes automáticos;
-Painel administrativo;
-Gerenciamento de horários pelo estabelecimento;
-Histórico completo de agendamentos;
-Diferentes tipos de serviços;
-Integração com pagamentos;
-Melhorias na experiência do usuário.
-🤝 Contribuição
+# 🚧 Possíveis evoluções
+
+Algumas funcionalidades podem ser adicionadas ou aprimoradas futuramente:
+
+* 🔔 Notificações de confirmação de agendamento
+* ⏰ Lembretes automáticos
+* 📊 Painel administrativo
+* 🗓️ Gerenciamento de horários pelo estabelecimento
+* 📜 Histórico completo de agendamentos
+* 💈 Diferentes tipos de serviços
+* 💳 Integração com pagamentos
+* 🎨 Melhorias na experiência do usuário
+
+---
+
+# 🤝 Contribuição
 
 Contribuições são bem-vindas.
 
-Para contribuir:
+Para contribuir com o projeto:
 
-Faça um fork do projeto;
-Crie uma branch para sua feature:
+### 1. Faça um fork do projeto
+
+### 2. Crie uma branch para sua feature
+
+```bash
 git checkout -b feature/minha-feature
-Faça suas alterações;
-Realize o commit:
+```
+
+### 3. Faça suas alterações
+
+Implemente e teste as modificações desejadas.
+
+### 4. Realize o commit
+
+```bash
 git commit -m "Adiciona nova funcionalidade"
-Envie a branch:
+```
+
+### 5. Envie a branch
+
+```bash
 git push origin feature/minha-feature
-Abra um Pull Request.
-📄 Licença
+```
 
-Este projeto está licenciado sob a licença MIT.
+### 6. Abra um Pull Request
 
-Consulte o arquivo LICENSE para mais informações.
+Descreva as alterações realizadas e envie o Pull Request para análise.
 
-👨‍💻 Desenvolvedor
+---
 
-Kennedy Ramos
+# 📄 Licença
 
-Desenvolvedor Full Stack com foco em Python e Flutter.
+Este projeto está licenciado sob a **Licença MIT**.
+
+Consulte o arquivo [`LICENSE`](LICENSE) para mais informações.
+
+---
+
+# 👨‍💻 Desenvolvedor
+
+## Kennedy Ramos
+
+**Desenvolvedor Full Stack** com foco em **Python e Flutter**.
 
 Tenho interesse em desenvolvimento de:
 
-Aplicações Full Stack;
-APIs e Backend com Python;
-Aplicações Mobile com Flutter;
-Integrações com serviços em nuvem.
-🔗 Links
-GitHub: https://github.com/KennnedyRamos
-LinkedIn: https://www.linkedin.com/in/kennedy-silva-ramos-566b00150/
-Portfólio: https://kennnedyramos.github.io/meu-postifolio-web/
+* 🌐 Aplicações Full Stack
+* ⚙️ APIs e Backend com Python
+* 📱 Aplicações Mobile com Flutter
+* ☁️ Integrações com serviços em nuvem
 
-⭐ Se este projeto foi útil ou interessante, considere deixar uma estrela no repositório.
+---
 
-Feito com Flutter, Dart e dedicação por Kennedy Ramos.
+# 🔗 Links
 
+* **GitHub:** [KennnedyRamos](https://github.com/KennnedyRamos)
+* **LinkedIn:** [Kennedy Ramos](https://www.linkedin.com/in/kennedy-silva-ramos-566b00150/)
+* **Portfólio:** [Meu Portfólio](https://kennnedyramos.github.io/meu-postifolio-web/)
 
-### Uma mudança importante em relação ao seu README atual
+---
 
-Eu **retirei os `[svg]`** que aparecem no texto que você me enviou. Eles são elementos gerados/capturados pela interface do GitHub e **não devem estar no Markdown real**.
+# ⭐ Apoie o projeto
 
-Também não colocaria o Instagram nesse README. Para o objetivo que estamos construindo, queremos que o recrutador tenha um caminho muito claro:
+Se este projeto foi útil ou interessante, considere deixar uma **⭐ estrela no repositório**.
+
+---
+
+<div align="center">
+
+### Feito com Flutter, Dart e dedicação por Kennedy Ramos. 🚀
+
+</div>
+
+---
+
+## 🎯 Objetivo deste README
+
+Este README foi estruturado para apresentar o projeto de forma clara para diferentes públicos:
+
+### 👔 Recrutadores não técnicos
+
+Permite entender rapidamente:
+
+* O que é o projeto
+* Qual problema ele resolve
+* Quais tecnologias foram utilizadas
+* Quais funcionalidades foram desenvolvidas
+
+### 💻 Recrutadores técnicos
+
+Evidencia conhecimentos em:
+
+* Flutter
+* Dart
+* Firebase
+* Firestore
+* Supabase
+* Autenticação
+* Integração com serviços em nuvem
+* Gerenciamento de estado e regras de negócio
+* Organização e separação de responsabilidades
+
+### 👨‍💻 Desenvolvedores
+
+Fornece informações suficientes para:
+
+* Clonar o projeto
+* Configurar as dependências
+* Configurar Firebase
+* Configurar Supabase
+* Executar a aplicação
+* Executar os testes
+* Gerar o build
+
+---
+
+## 🚀 Posicionamento profissional
+
+O README foi estruturado para reforçar uma apresentação profissional do projeto e criar um caminho claro para quem deseja conhecer mais sobre o desenvolvedor:
 
 **GitHub → LinkedIn → Portfólio**
 
-e não dispersar a atenção para redes pessoais.
-
-### E o mais importante
-
-Esse README agora vende o projeto em três níveis:
-
-**1. Recrutador não técnico:** entende rapidamente o que você construiu.
-
-**2. Recrutador técnico:** vê Flutter, Dart, Firebase, Firestore, Supabase, autenticação, arquitetura e lógica de negócio.
-
-**3. Desenvolvedor:** consegue entender a estrutura e executar o projeto.
-
-Isso está muito mais alinhado ao posicionamento que estamos construindo no LinkedIn.
+O objetivo é apresentar primeiro a capacidade técnica demonstrada no projeto e, posteriormente, direcionar o visitante para os demais canais profissionais.
