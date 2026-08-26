@@ -1,4 +1,4 @@
-﻿class Appointment {
+class Appointment {
   final String id;
   final String barberId;
   final String barbershopId;
@@ -48,9 +48,8 @@
 
   static Appointment fromMap(String id, Map<String, dynamic> map) {
     final priceValue = map['servicePrice'];
-    final price = priceValue is int
-        ? priceValue.toDouble()
-        : (priceValue ?? 0.0);
+    final price =
+        priceValue is int ? priceValue.toDouble() : (priceValue ?? 0.0);
     return Appointment(
       id: id,
       barberId: map['barberId'] ?? '',

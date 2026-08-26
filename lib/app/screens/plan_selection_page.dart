@@ -71,8 +71,8 @@ class PlanSelectionPage extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) =>
-                              PlanDetailsPage(barbershop: barbershop, plan: plan),
+                          builder: (context) => PlanDetailsPage(
+                              barbershop: barbershop, plan: plan),
                         ),
                       );
                     },

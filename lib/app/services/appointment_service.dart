@@ -9,6 +9,37 @@ class AppointmentService {
     return '${barberId}_${date}_$hour';
   }
 
+  DocumentReference<Map<String, dynamic>> _notificationRef(
+    String userId,
+    String notificationId,
+  ) {
+    return _db
+        .collection('users')
+        .doc(userId)
+        .collection('notifications')
+        .doc(notificationId);
+  }
+
+  Map<String, dynamic> _notificationData({
+    required String userId,
+    required String actorId,
+    required String appointmentId,
+    required String type,
+    required String title,
+    required String body,
+  }) {
+    return {
+      'userId': userId,
+      'actorId': actorId,
+      'appointmentId': appointmentId,
+      'type': type,
+      'title': title,
+      'body': body,
+      'isRead': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+  }
+
   Future<void> bookAppointment({
     required String barberId,
     required String barbershopId,
@@ -21,7 +52,13 @@ class AppointmentService {
     required double servicePrice,
     String? monthlyPlanId,
     bool isMonthlyPlan = false,
+    String paymentMethod = 'pay_at_shop',
+    String paymentStatus = 'pay_at_shop',
   }) async {
+    if (_auth.currentUser?.uid != clientId) {
+      throw StateError('O cliente informado não corresponde à sessão atual.');
+    }
+
     final slotId = _slotId(barberId, date, hour);
     final slotRef = _db.collection('slots').doc(slotId);
     final appointmentRef = _db.collection('appointments').doc();
@@ -30,7 +67,7 @@ class AppointmentService {
     await _db.runTransaction((tx) async {
       final slotSnap = await tx.get(slotRef);
       if (slotSnap.exists) {
-        throw Exception('Horário indisponível.');
+        throw const SlotUnavailableException();
       }
 
       tx.set(slotRef, {
@@ -54,16 +91,49 @@ class AppointmentService {
         'servicePrice': servicePrice,
         'status': 'active',
         'paid': false,
+        'paymentMethod': paymentMethod,
+        'paymentStatus': paymentStatus,
         'monthlyPlanId': monthlyPlanId,
         'isMonthlyPlan': isMonthlyPlan,
         'scheduledAt': Timestamp.fromDate(scheduledAt),
         'createdAt': FieldValue.serverTimestamp(),
       });
+
+      tx.set(
+        _notificationRef(
+          clientId,
+          '${appointmentRef.id}_created_client',
+        ),
+        _notificationData(
+          userId: clientId,
+          actorId: clientId,
+          appointmentId: appointmentRef.id,
+          type: 'appointment_created',
+          title: 'Agendamento confirmado',
+          body: 'Seu horário na $barbershopName foi confirmado para '
+              '$date às $hour:00.',
+        ),
+      );
+      tx.set(
+        _notificationRef(
+          barberId,
+          '${appointmentRef.id}_created_barber',
+        ),
+        _notificationData(
+          userId: barberId,
+          actorId: clientId,
+          appointmentId: appointmentRef.id,
+          type: 'appointment_created',
+          title: 'Novo agendamento',
+          body: '$clientName agendou $serviceName para $date às $hour:00.',
+        ),
+      );
     });
   }
 
   Future<void> cancelAppointment({
     required String appointmentId,
+    required String cancelledBy,
     String? reason,
   }) async {
     final user = _auth.currentUser;
@@ -86,12 +156,21 @@ class AppointmentService {
       if (!isClient && !isBarber) {
         throw Exception('Sem permissão para cancelar.');
       }
+      if (cancelledBy != 'client' && cancelledBy != 'barber') {
+        throw Exception('Origem do cancelamento inválida.');
+      }
+      if (cancelledBy == 'client' && !isClient) {
+        throw Exception('Este usuário não é o cliente do agendamento.');
+      }
+      if (cancelledBy == 'barber' && !isBarber) {
+        throw Exception('Este usuário não é o barbeiro do agendamento.');
+      }
 
       if (data['status'] == 'cancelled') {
         return;
       }
 
-      if (isClient) {
+      if (cancelledBy == 'client') {
         DateTime? scheduledAt;
         final ts = data['scheduledAt'];
         if (ts is Timestamp) {
@@ -107,8 +186,7 @@ class AppointmentService {
         if (scheduledAt == null) {
           throw Exception('Agendamento sem data válida para cancelamento.');
         }
-        final cancelDeadline =
-            scheduledAt.subtract(const Duration(hours: 6));
+        final cancelDeadline = scheduledAt.subtract(const Duration(hours: 6));
         if (DateTime.now().isAfter(cancelDeadline)) {
           throw Exception(
               'Prazo de cancelamento expirado (6h antes do horário).');
@@ -117,7 +195,7 @@ class AppointmentService {
 
       final cancelReason = (reason != null && reason.trim().isNotEmpty)
           ? reason.trim()
-          : (isBarber
+          : (cancelledBy == 'barber'
               ? 'Agendamento cancelado pelo barbeiro. Entre em contato para remarcar.'
               : 'Cancelado pelo cliente');
 
@@ -127,10 +205,110 @@ class AppointmentService {
       tx.delete(slotRef);
       tx.update(appointmentRef, {
         'status': 'cancelled',
-        'cancelledBy': isBarber ? 'barber' : 'client',
+        'cancelledBy': cancelledBy,
+        'cancelledByUserId': userId,
         'cancelReason': cancelReason,
         'cancelledAt': FieldValue.serverTimestamp(),
       });
+
+      final clientId = data['clientId']?.toString() ?? '';
+      final barberId = data['barberId']?.toString() ?? '';
+      final clientName = data['clientName']?.toString() ?? 'O cliente';
+      final barbershopName =
+          data['barbershopName']?.toString() ?? 'A barbearia';
+      final date = data['date']?.toString() ?? '';
+      final hour = data['hour']?.toString() ?? '';
+
+      if (clientId.isNotEmpty) {
+        tx.set(
+          _notificationRef(clientId, '${appointmentRef.id}_cancelled_client'),
+          _notificationData(
+            userId: clientId,
+            actorId: userId,
+            appointmentId: appointmentRef.id,
+            type: 'appointment_cancelled',
+            title: 'Agendamento cancelado',
+            body: cancelledBy == 'client'
+                ? 'Você cancelou o horário de $date às $hour:00.'
+                : '$barbershopName cancelou o horário de $date às $hour:00. '
+                    '$cancelReason',
+          ),
+        );
+      }
+      if (barberId.isNotEmpty) {
+        tx.set(
+          _notificationRef(barberId, '${appointmentRef.id}_cancelled_barber'),
+          _notificationData(
+            userId: barberId,
+            actorId: userId,
+            appointmentId: appointmentRef.id,
+            type: 'appointment_cancelled',
+            title: 'Agendamento cancelado',
+            body: cancelledBy == 'barber'
+                ? 'Você cancelou o horário de $clientName em $date às $hour:00.'
+                : '$clientName cancelou o horário de $date às $hour:00.',
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> completeAppointment({required String appointmentId}) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('Usuário não autenticado.');
+    }
+
+    final appointmentRef = _db.collection('appointments').doc(appointmentId);
+    await _db.runTransaction((tx) async {
+      final snapshot = await tx.get(appointmentRef);
+      if (!snapshot.exists) {
+        throw Exception('Agendamento não encontrado.');
+      }
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      if (data['barberId'] != user.uid) {
+        throw Exception('Somente o barbeiro pode concluir o atendimento.');
+      }
+      if (data['status'] != 'active') {
+        throw Exception('Este agendamento não está ativo.');
+      }
+
+      tx.update(appointmentRef, {
+        'status': 'completed',
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+
+      final clientId = data['clientId']?.toString() ?? '';
+      final barberId = data['barberId']?.toString() ?? '';
+      final clientName = data['clientName']?.toString() ?? 'Cliente';
+      final serviceName = data['serviceName']?.toString() ?? 'Atendimento';
+      if (clientId.isNotEmpty) {
+        tx.set(
+          _notificationRef(clientId, '${appointmentRef.id}_completed_client'),
+          _notificationData(
+            userId: clientId,
+            actorId: user.uid,
+            appointmentId: appointmentRef.id,
+            type: 'appointment_completed',
+            title: 'Atendimento concluído',
+            body: 'Seu atendimento de $serviceName foi concluído.',
+          ),
+        );
+      }
+      if (barberId.isNotEmpty) {
+        tx.set(
+          _notificationRef(barberId, '${appointmentRef.id}_completed_barber'),
+          _notificationData(
+            userId: barberId,
+            actorId: user.uid,
+            appointmentId: appointmentRef.id,
+            type: 'appointment_completed',
+            title: 'Atendimento concluído',
+            body: 'Você concluiu o atendimento de $clientName.',
+          ),
+        );
+      }
     });
   }
 
@@ -144,9 +322,7 @@ class AppointmentService {
         .where('date', isEqualTo: date)
         .get();
 
-    return snapshot.docs
-        .map((doc) => doc.data()['hour'].toString())
-        .toList();
+    return snapshot.docs.map((doc) => doc.data()['hour'].toString()).toList();
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchAppointmentsForClient(
@@ -163,13 +339,6 @@ class AppointmentService {
         .collection('appointments')
         .where('barberId', isEqualTo: barberId)
         .snapshots();
-  }
-
-  Future<void> markAppointmentPaid(String appointmentId) async {
-    await _db.collection('appointments').doc(appointmentId).update({
-      'paid': true,
-      'paidAt': FieldValue.serverTimestamp(),
-    });
   }
 
   Future<int> createMonthlyPlanAppointments({
@@ -201,6 +370,8 @@ class AppointmentService {
       final dateKey = DateTime(date.year, date.month, date.day);
       final dateStr =
           '${dateKey.year.toString().padLeft(4, '0')}-${dateKey.month.toString().padLeft(2, '0')}-${dateKey.day.toString().padLeft(2, '0')}';
+      final scheduledAt = DateTime.parse('${dateStr}T$hour:00:00');
+      if (!scheduledAt.isAfter(DateTime.now())) continue;
       try {
         await bookAppointment(
           barberId: barberId,
@@ -216,8 +387,8 @@ class AppointmentService {
           isMonthlyPlan: true,
         );
         created++;
-      } catch (_) {
-        // Skip conflicting slots
+      } on SlotUnavailableException {
+        // Outro cliente já reservou este horário.
       }
     }
     return created;
@@ -274,6 +445,7 @@ class AppointmentService {
       }
       await cancelAppointment(
         appointmentId: doc.id,
+        cancelledBy: 'client',
         reason: 'Plano mensal editado',
       );
     }
@@ -292,6 +464,8 @@ class AppointmentService {
       final dateKey = DateTime(date.year, date.month, date.day);
       final dateStr =
           '${dateKey.year.toString().padLeft(4, '0')}-${dateKey.month.toString().padLeft(2, '0')}-${dateKey.day.toString().padLeft(2, '0')}';
+      final scheduledAt = DateTime.parse('${dateStr}T$hour:00:00');
+      if (!scheduledAt.isAfter(DateTime.now())) continue;
       try {
         await bookAppointment(
           barberId: barberId,
@@ -307,11 +481,18 @@ class AppointmentService {
           isMonthlyPlan: true,
         );
         created++;
-      } catch (_) {
-        // Skip conflicting slots
+      } on SlotUnavailableException {
+        // Outro cliente já reservou este horário.
       }
     }
 
     return created;
   }
+}
+
+class SlotUnavailableException implements Exception {
+  const SlotUnavailableException();
+
+  @override
+  String toString() => 'Horário indisponível.';
 }

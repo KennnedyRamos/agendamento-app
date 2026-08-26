@@ -1,6 +1,7 @@
-﻿import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/models/barbershop.dart';
 import 'package:agendamento_app/app/services/app_firestore_service.dart';
 import 'package:agendamento_app/app/services/review_service.dart';
+import 'package:agendamento_app/app/widgets/barbershop_image.dart';
 import 'package:flutter/material.dart';
 
 class BarberPublicProfilePage extends StatelessWidget {
@@ -92,16 +93,15 @@ class BarberPublicProfilePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (barbershop.imageUrl != null &&
-                barbershop.imageUrl!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  barbershop.imageUrl!,
-                  height: 180,
-                  fit: BoxFit.cover,
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BarbershopImage(
+                logoData: barbershop.logoData,
+                imageUrl: barbershop.imageUrl,
+                height: 180,
+                width: double.infinity,
               ),
+            ),
             const SizedBox(height: 16),
             Text(
               barbershop.nome,
@@ -236,8 +236,7 @@ class BarberPublicProfilePage extends StatelessWidget {
                       await showReviewDialog();
                     },
                     icon: Icon(hasReview ? Icons.edit : Icons.star, size: 18),
-                    label:
-                        Text(hasReview ? 'Editar avaliação' : 'Avaliar'),
+                    label: Text(hasReview ? 'Editar avaliação' : 'Avaliar'),
                     style: TextButton.styleFrom(
                       padding: EdgeInsets.zero,
                       minimumSize: const Size(0, 0),
@@ -275,5 +274,3 @@ class _StarsRow extends StatelessWidget {
     );
   }
 }
-
-

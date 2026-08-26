@@ -1,0 +1,5 @@
+# Never commit android/key.properties or the keystore itself.
+storePassword=replace-with-a-strong-password
+keyPassword=replace-with-a-strong-password
+keyAlias=barberkr-upload
+storeFile=../upload-keystore.jks

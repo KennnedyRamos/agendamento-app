@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:agendamento_app/app/models/monthly_plan.dart';
 import 'package:agendamento_app/app/models/service_item.dart';
@@ -7,7 +7,7 @@ import 'package:agendamento_app/app/screens/login_page_cliente.dart';
 import 'package:agendamento_app/app/screens/map_picker_page.dart';
 import 'package:agendamento_app/app/screens/role_gate_page.dart';
 import 'package:agendamento_app/app/services/app_firestore_service.dart';
-import 'package:agendamento_app/app/services/supabase_storage_service.dart';
+import 'package:agendamento_app/app/services/barbershop_logo_service.dart';
 import 'package:agendamento_app/app/utils/availability_utils.dart';
 import 'package:agendamento_app/app/utils/map_utils.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -76,7 +76,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final AppFirestoreService _firestoreService = AppFirestoreService();
-  final SupabaseStorageService _storageService = SupabaseStorageService();
+  final BarbershopLogoService _logoService = BarbershopLogoService();
   final _formKey = GlobalKey<FormState>();
 
   bool _isBarber = false;
@@ -90,7 +90,6 @@ class _RegisterPageState extends State<RegisterPage> {
   final List<_PlanFormItem> _planItems = [];
   double? _locationLat;
   double? _locationLng;
-  bool _isGeocoding = false;
 
   Map<String, dynamic> _currentEnderecoMap() {
     return {
@@ -186,15 +185,6 @@ class _RegisterPageState extends State<RegisterPage> {
     return plans;
   }
 
-  Future<BarbershopImageUploadResult?> _uploadBarbershopImage(
-      String userId) async {
-    if (_selectedImage == null) return null;
-    return _storageService.uploadBarbershopImage(
-      userId: userId,
-      file: _selectedImage!,
-    );
-  }
-
   Future<void> _register() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -223,20 +213,20 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     }
 
-    try {
-      final methods = await _auth.fetchSignInMethodsForEmail(email);
-      if (methods.isNotEmpty) {
+    String? logoData;
+    if (_isBarber && _selectedImage != null) {
+      try {
+        logoData = await _logoService.prepareLogo(_selectedImage!);
+      } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Este e-mail já está cadastrado. Faça login para continuar.',
-            ),
-          ),
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
         return;
       }
+    }
 
+    try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -257,18 +247,6 @@ class _RegisterPageState extends State<RegisterPage> {
       await _firestoreService.createUserProfile(profile);
 
       if (_isBarber) {
-        BarbershopImageUploadResult? uploadResult;
-        if (_selectedImage != null) {
-          try {
-            uploadResult = await _uploadBarbershopImage(user.uid);
-          } catch (e) {
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Erro ao enviar imagem: ${e.toString()}')),
-            );
-            return;
-          }
-        }
         final services = _buildServices();
         final endereco = {
           'bairro': _bairroController.text.trim(),
@@ -297,8 +275,7 @@ class _RegisterPageState extends State<RegisterPage> {
           locationLabel: _locationLabelController.text.trim(),
           services: services,
           availability: availability,
-          imageUrl: uploadResult?.imageUrl,
-          imageThumbUrl: uploadResult?.thumbUrl,
+          logoData: logoData,
           pixKey: _pixKeyController.text.trim().isEmpty
               ? null
               : _pixKeyController.text.trim(),
@@ -421,9 +398,10 @@ class _RegisterPageState extends State<RegisterPage> {
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
-                        decoration:
-                            getAuthenticationInputDecoration("Confirme a Senha",
-                                isPassword: true, isConfirm: true),
+                        decoration: getAuthenticationInputDecoration(
+                            "Confirme a Senha",
+                            isPassword: true,
+                            isConfirm: true),
                         validator: (value) => validateField(
                             value, "Confirmação da Senha",
                             minLength: 8),
@@ -465,8 +443,8 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _shopNameController,
-                          decoration:
-                              getAuthenticationInputDecoration("Nome da barbearia"),
+                          decoration: getAuthenticationInputDecoration(
+                              "Nome da barbearia"),
                           validator: (value) =>
                               validateField(value, "Nome da barbearia"),
                         ),
@@ -506,9 +484,11 @@ class _RegisterPageState extends State<RegisterPage> {
                             Expanded(
                               child: TextFormField(
                                 controller: _cepController,
-                                decoration: getAuthenticationInputDecoration("CEP"),
+                                decoration:
+                                    getAuthenticationInputDecoration("CEP"),
                                 keyboardType: TextInputType.number,
-                                validator: (value) => validateField(value, "CEP"),
+                                validator: (value) =>
+                                    validateField(value, "CEP"),
                               ),
                             ),
                           ],
@@ -534,12 +514,12 @@ class _RegisterPageState extends State<RegisterPage> {
                             } else {
                               final address =
                                   MapUtils.buildAddress(_currentEnderecoMap());
-                              await _setGeocoding(true);
+                              _setGeocoding(true);
                               final geocoded =
                                   await MapUtils.geocodeAddress(address);
-                              await _setGeocoding(false);
+                              _setGeocoding(false);
+                              if (!context.mounted) return;
                               if (geocoded == null) {
-                                if (!mounted) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
                                     content: Text(
@@ -551,6 +531,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               }
                               initial = geocoded;
                             }
+                            if (!context.mounted) return;
                             final result = await Navigator.push<LatLng>(
                               context,
                               MaterialPageRoute(
@@ -558,6 +539,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                     MapPickerPage(initialPosition: initial),
                               ),
                             );
+                            if (!mounted) return;
                             if (result != null) {
                               setState(() {
                                 _locationLat = result.latitude;
@@ -643,10 +625,14 @@ class _RegisterPageState extends State<RegisterPage> {
                         const SizedBox(height: 12),
                         TextButton.icon(
                           onPressed: _pickImage,
-                          icon: const Icon(Icons.image),
+                          icon: const Icon(Icons.add_photo_alternate_rounded),
                           label: Text(_selectedImage == null
-                              ? 'Selecionar imagem (opcional)'
-                              : 'Imagem selecionada'),
+                              ? 'Escolher logo (opcional)'
+                              : 'Trocar logo selecionada'),
+                        ),
+                        const Text(
+                          'Se não escolher uma logo, usaremos a imagem padrão.',
+                          style: TextStyle(fontSize: 12),
                         ),
                         if (_selectedImage != null)
                           Padding(
@@ -743,11 +729,8 @@ class _RegisterPageState extends State<RegisterPage> {
     return widgets;
   }
 
-  Future<void> _setGeocoding(bool value) async {
+  void _setGeocoding(bool value) {
     if (!mounted) return;
-    setState(() {
-      _isGeocoding = value;
-    });
     if (value) {
       showDialog(
         context: context,

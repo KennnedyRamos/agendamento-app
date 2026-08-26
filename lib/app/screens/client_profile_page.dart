@@ -1,4 +1,5 @@
-﻿import 'package:agendamento_app/app/services/app_firestore_service.dart';
+import 'package:agendamento_app/app/services/app_firestore_service.dart';
+import 'package:agendamento_app/app/widgets/legal_links_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -118,6 +119,8 @@ class _ClientProfilePageState extends State<ClientProfilePage> {
                 );
               },
             ),
+            const SizedBox(height: 16),
+            const LegalLinksCard(),
           ],
         ),
       ),

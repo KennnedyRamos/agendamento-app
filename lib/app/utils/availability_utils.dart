@@ -1,4 +1,4 @@
-﻿Map<String, List<String>> buildAvailability({
+Map<String, List<String>> buildAvailability({
   required List<int> days,
   required int startHour,
   required int endHour,

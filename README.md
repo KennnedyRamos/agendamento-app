@@ -1,653 +1,251 @@
-# 📅 App de Agendamento — Flutter, Firebase & Supabase
+<div align="center">
+  <img src="assets/logo1.png" alt="Logo BarberKR" width="140" />
+  <h1>BarberKR</h1>
+  <p><strong>Agendamento inteligente e gestão de rotina para barbearias.</strong></p>
 
-Aplicativo de agendamento desenvolvido em **Flutter**, com autenticação de usuários, gerenciamento de horários e integração com serviços em nuvem.
+  [![Flutter](https://img.shields.io/badge/Flutter-3.38.5-02569B?logo=flutter&logoColor=white)](https://flutter.dev/)
+  [![Dart](https://img.shields.io/badge/Dart-3.10.4-0175C2?logo=dart&logoColor=white)](https://dart.dev/)
+  [![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20FCM-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
+  [![Android](https://img.shields.io/badge/Android-API%2036-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
+  [![CI](https://github.com/KennnedyRamos/agendamento-app/actions/workflows/ci.yml/badge.svg)](https://github.com/KennnedyRamos/agendamento-app/actions/workflows/ci.yml)
+  [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+</div>
 
-O projeto foi desenvolvido como uma aplicação completa, contemplando desde o fluxo de cadastro e autenticação até o gerenciamento de disponibilidade dos horários, cancelamento de agendamentos e armazenamento de dados.
-
-> 🚀 Projeto desenvolvido por Kennedy Ramos como parte do meu portfólio de desenvolvimento mobile.
-
----
-
-## 📌 Sobre o projeto
-
-O **App de Agendamento** foi desenvolvido para solucionar um problema comum em sistemas de agendamento: permitir que usuários consultem horários disponíveis, realizem reservas e liberem automaticamente os horários quando um agendamento é cancelado.
-
-A aplicação possui:
-
-- Cadastro e autenticação de usuários;
-- Recuperação de senha;
-- Calendário para consulta de disponibilidade;
-- Criação de agendamentos;
-- Bloqueio de horários já reservados;
-- Cancelamento de agendamentos;
-- Liberação dos horários após cancelamento;
-- Persistência dos dados em serviços de nuvem.
-
-O projeto também utiliza **Supabase Storage** para armazenamento de imagens relacionadas às barbearias.
+![Ambiente visual do BarberKR](assets/images/barber_home_hero.png)
 
 ---
 
-# 🎯 Objetivos
+## ✨ Sobre o projeto
 
-O desenvolvimento teve como principais objetivos:
+O **BarberKR** é uma aplicação mobile construída em Flutter para conectar clientes e barbearias em uma experiência única de descoberta, agendamento e atendimento. O cliente encontra estabelecimentos próximos, consulta horários, conversa com a barbearia e acompanha seus agendamentos. O barbeiro recebe uma visão operacional do dia, administra serviços, planos, disponibilidade e histórico.
 
-- Criar uma aplicação mobile multiplataforma utilizando Flutter;
-- Implementar um fluxo completo de autenticação;
-- Trabalhar com persistência de dados em nuvem;
-- Criar uma lógica de controle de disponibilidade de horários;
-- Organizar o código utilizando separação entre telas, modelos e serviços;
-- Trabalhar com integração entre diferentes serviços de backend/cloud;
-- Desenvolver uma aplicação próxima de um cenário real de utilização.
+Mais do que uma demonstração visual, este projeto explora problemas reais de produto: concorrência na reserva do mesmo horário, identidade de quem cancelou, comunicação individual, notificações persistentes, privacidade, pagamentos marketplace e preparação de releases assinados.
 
----
+> 🚀 Projeto de portfólio desenvolvido por **Kennedy Ramos**, com foco em engenharia mobile, experiência do usuário e evolução contínua de produto.
 
-# 🚀 Principais funcionalidades
+## 🎯 Destaques
 
-## 👤 Autenticação
+- Dois perfis no mesmo aplicativo: **cliente** e **barbeiro**.
+- Reserva transacional: um horário não pode ser ocupado por dois clientes.
+- Painel diário com próximos atendimentos e atividades recentes.
+- Agenda e histórico separados, com pesquisa por cliente e filtros por período.
+- Cancelamento rastreável por autor, motivo e data.
+- Chat individual com histórico e notificações não lidas.
+- Descoberta de barbearias próximas, com consentimento de localização.
+- Logo personalizada por barbearia e identidade visual moderna.
+- Pagamento em dinheiro ativo e integração marketplace com Mercado Pago preparada.
+- Regras de segurança, CI, testes e assinatura de release para Android.
 
-A aplicação utiliza **Firebase Authentication** para gerenciamento dos usuários.
+## 📱 Experiência por perfil
 
-Funcionalidades disponíveis:
+<p align="center">
+  <img src="docs/screenshots/login.png" alt="Tela de acesso do BarberKR" width="320" />
+</p>
 
-- Cadastro de usuários;
-- Login;
-- Redefinição de senha;
-- Validação de senha;
-- Opção de "Lembrar-me";
-- Controle para evitar múltiplas contas.
+### Cliente
 
----
+- Cadastro, login e recuperação de senha com Firebase Authentication.
+- Busca por nome, bairro ou cidade.
+- Sugestões ordenadas por proximidade; a localização do cliente não é persistida.
+- Perfil público da barbearia, serviços, preços, avaliações e rotas.
+- Consulta de horários e agendamento com pagamento no local.
+- Planos mensais com recorrência de horários.
+- Histórico de atendimentos confirmados.
+- Avaliação da barbearia após o atendimento.
+- Chat e central de notificações.
 
-## 📅 Sistema de agendamento
+### Barbeiro
 
-O usuário pode visualizar os horários disponíveis através de um calendário.
+- Dashboard de rotina com total do dia, próximo horário e indicadores.
+- Atividades recentes limitadas aos cinco eventos mais relevantes.
+- Agenda operacional e conclusão de atendimentos.
+- Histórico com filtros por dia, mês ou ano, nome do cliente e tipo de evento.
+- Cadastro de serviços, preços, planos, endereço, localização e horários.
+- Personalização da logo exibida aos clientes.
+- Conversas individuais e notificações de agendamento, cancelamento e pagamento.
+- Conexão de uma conta Mercado Pago por barbearia, quando o backend estiver publicado.
 
-### Fluxo de agendamento
+## 🧠 Decisões de engenharia
 
-1. O usuário acessa o calendário;
-2. Seleciona uma data;
-3. Consulta os horários disponíveis;
-4. Seleciona um horário;
-5. Confirma o agendamento;
-6. O horário passa a ficar indisponível para outros usuários.
-
----
-
-## 🔄 Cancelamento de agendamento
-
-Quando um usuário cancela um agendamento:
-
-- O agendamento é removido;
-- O horário é liberado;
-- O horário volta a ficar disponível para outros usuários.
-
-Essa lógica permite manter o controle de disponibilidade dos horários de forma dinâmica.
-
----
-
-# 🧠 Principais desafios do projeto
-
-Durante o desenvolvimento, alguns dos principais desafios envolveram a implementação da lógica responsável pelo controle de disponibilidade dos horários.
-
-O sistema precisava garantir que:
-
-- Horários já utilizados não fossem disponibilizados novamente para outros usuários;
-- Um cancelamento liberasse corretamente o horário;
-- Os dados dos agendamentos permanecessem sincronizados com o banco;
-- O fluxo de autenticação funcionasse de forma integrada à aplicação;
-- A estrutura do projeto permanecesse organizada conforme novas funcionalidades fossem adicionadas.
-
-Outro ponto importante foi trabalhar com diferentes serviços de infraestrutura, utilizando **Firebase** para autenticação e banco de dados e **Supabase Storage** para armazenamento de imagens.
-
----
-
-# 🛠️ Tecnologias utilizadas
-
-## Flutter
-
-Framework utilizado para desenvolvimento da aplicação mobile multiplataforma.
-
-## Dart
-
-Linguagem utilizada no desenvolvimento da aplicação.
-
-## Firebase Authentication
-
-Utilizado para:
-
-- Cadastro;
-- Login;
-- Recuperação de senha;
-- Gerenciamento da autenticação dos usuários.
-
-## Firebase Firestore
-
-Banco de dados utilizado para armazenamento das informações da aplicação.
-
-## Supabase Storage
-
-Utilizado para armazenamento de imagens relacionadas às barbearias.
-
-## TableCalendar
-
-Plugin utilizado para construção da interface de calendário e interação com datas e horários.
-
----
-
-# 🏗️ Estrutura do projeto
-
-A aplicação foi organizada buscando separar responsabilidades entre modelos, telas e serviços.
-
-```text
-project/
-│
-├── lib/
-│   ├── _colors/
-│   │   └── my_colors.dart
-│   │
-│   ├── app/
-│   │   ├── models/
-│   │   │   └── cadastro_cliente_models.dart
-│   │   │
-│   │   ├── screens/
-│   │   │   ├── Widget/
-│   │   │   │   └── appointments_list_tile.dart
-│   │   │   │
-│   │   │   ├── events_page.dart
-│   │   │   ├── home_page.dart
-│   │   │   ├── login_page_cliente.dart
-│   │   │   ├── profile_page.dart
-│   │   │   ├── register_page.dart
-│   │   │   ├── reset_password_page.dart
-│   │   │   └── welcome_page.dart
-│   │   │
-│   │   ├── services/
-│   │   │   ├── appointment_services.dart
-│   │   │   └── firestone_service.dart
-│   │   │
-│   │   └── app_widget.dart
-│   │
-│   ├── firebase_options.dart
-│   └── main.dart
-│
-├── android/
-├── ios/
-└── pubspec.yaml
+```mermaid
+flowchart LR
+    A[Flutter / Android] --> B[Firebase Authentication]
+    A --> C[Cloud Firestore]
+    A --> D[Firebase Cloud Messaging]
+    A --> E[Mapas e localização]
+    A --> F[Cloud Functions]
+    F --> G[Mercado Pago Marketplace]
+    C --> H[Regras e índices]
+    F --> C
 ```
-## 📂 Organização do projeto
 
-A aplicação foi organizada de forma a separar responsabilidades entre modelos, telas, serviços e configurações.
-
-| Diretório / Arquivo | Responsabilidade |
+| Tema | Solução aplicada |
 |---|---|
-| `models/` | Modelos utilizados pela aplicação |
-| `screens/` | Telas e componentes da interface |
-| `services/` | Serviços responsáveis pela comunicação com o banco e pelas regras relacionadas aos agendamentos |
-| `_colors/` | Definição das cores utilizadas na aplicação |
-| `main.dart` | Ponto de entrada da aplicação |
+| Concorrência de horários | Transação atômica entre `appointments` e `slots` |
+| Segurança | Regras com campos permitidos, identidade imutável e validação de participantes |
+| Pagamentos | Preço validado no servidor, OAuth por estabelecimento e webhook assinado |
+| Tokens OAuth | Criptografia AES-256-GCM antes de persistir |
+| Notificações | Push em primeiro plano + histórico por usuário + contador de não lidas |
+| Privacidade | Consentimento contextual de localização e links legais dentro do app |
+| Release Android | Chave privada fora do Git, R8 e bloqueio de fallback para assinatura debug |
+| Qualidade | `flutter analyze`, testes automatizados e workflow de CI |
 
----
+## 🛠️ Stack
 
-## ☁️ Arquitetura de serviços
+- **Flutter / Dart** — interface e regras de apresentação.
+- **Firebase Authentication** — contas e sessões.
+- **Cloud Firestore** — perfis, barbearias, agenda, chat, avaliações e notificações.
+- **Firebase Cloud Messaging** — notificações push.
+- **Cloud Functions for Firebase** — eventos e backend seguro de pagamentos.
+- **Mercado Pago Marketplace** — Pix e cartão direcionados à conta de cada barbearia.
+- **Geolocator + OpenStreetMap** — proximidade, geocodificação e apoio à navegação.
+- **GitHub Actions** — análise, testes e validação das funções.
 
-A aplicação utiliza serviços em nuvem para diferentes responsabilidades:
+## 🗂️ Organização
 
 ```text
-                    ┌─────────────────────┐
-                    │    Flutter / Dart   │
-                    │     Aplicação       │
-                    └──────────┬──────────┘
-                               │
-                  ┌────────────┴────────────┐
-                  │                         │
-                  ▼                         ▼
-         ┌─────────────────┐       ┌─────────────────┐
-         │ Firebase Auth   │       │ Firebase        │
-         │                 │       │ Firestore       │
-         │ Autenticação    │       │ Dados           │
-         └─────────────────┘       └─────────────────┘
-                                          
-                               │
-                               ▼
-                      ┌─────────────────┐
-                      │ Supabase        │
-                      │ Storage         │
-                      │                 │
-                      │ Imagens         │
-                      └─────────────────┘
+lib/
+├── app/
+│   ├── models/       # Entidades e conversões de dados
+│   ├── screens/      # Fluxos de cliente, barbeiro, chat e checkout
+│   ├── services/     # Firebase, agenda, mensagens, notificações e pagamentos
+│   ├── utils/        # Disponibilidade, cancelamento e mapas
+│   └── widgets/      # Componentes reutilizáveis
+└── main.dart         # Inicialização das integrações
+
+functions/            # Backend Firebase e Mercado Pago
+docs/                 # Privacidade, publicação e configuração
+scripts/              # Execução e geração de releases
+test/                 # Testes unitários e de widgets
 ```
 
-                      
-# ✂️ Agendamento App
+## 🚀 Executando localmente
 
-Aplicação mobile desenvolvida com **Flutter e Dart** para gerenciamento de agendamentos em barbearias.
+### Pré-requisitos
 
-O projeto utiliza **Firebase** para autenticação e persistência de dados, além do **Supabase Storage** para armazenamento de imagens.
+- Flutter **3.38.5** ou uma versão estável compatível.
+- Android Studio com Android SDK **36**.
+- Um emulador Android ou dispositivo físico.
+- JDK 17 ou superior para o build Android.
+- Firebase CLI e JDK 21+ apenas para validar regras no emulador local.
 
----
+### 1. Clone e dependências
 
-## 🚀 Funcionalidades
-
-* 🔐 Cadastro e autenticação de usuários
-* 📅 Visualização de calendário
-* 🕐 Seleção de horários disponíveis
-* 📌 Criação de agendamentos
-* ❌ Cancelamento de agendamentos
-* 🔄 Gerenciamento da disponibilidade de horários
-* ☁️ Integração com Firebase
-* 🗄️ Armazenamento de imagens com Supabase Storage
-* 📱 Interface desenvolvida em Flutter
-
----
-
-## 🛠️ Tecnologias utilizadas
-
-| Tecnologia                  | Utilização                          |
-| --------------------------- | ----------------------------------- |
-| **Flutter**                 | Desenvolvimento da aplicação mobile |
-| **Dart**                    | Linguagem de programação            |
-| **Firebase Authentication** | Autenticação de usuários            |
-| **Cloud Firestore**         | Persistência dos dados              |
-| **Supabase Storage**        | Armazenamento de imagens            |
-| **Android Studio**          | Ambiente de desenvolvimento         |
-| **Git / GitHub**            | Versionamento do projeto            |
-
----
-
-# 🔧 Instalação e execução
-
-## 📋 Pré-requisitos
-
-Antes de executar o projeto, é necessário possuir:
-
-* Flutter instalado
-* Dart
-* Android Studio ou ambiente equivalente
-* Emulador Android ou dispositivo físico
-* Conta/projeto configurado no Firebase
-* Projeto configurado no Supabase, caso sejam utilizadas as funcionalidades de armazenamento de imagens
-
----
-
-## 1. 📥 Clone o repositório
-
-```bash
+```powershell
 git clone https://github.com/KennnedyRamos/agendamento-app.git
-```
-
-Entre na pasta do projeto:
-
-```bash
 cd agendamento-app
-```
-
----
-
-## 2. 📦 Instale as dependências
-
-Execute:
-
-```bash
 flutter pub get
 ```
 
----
+### 2. Firebase
 
-## 3. 🔥 Configure o Firebase
+O repositório inclui a configuração pública do cliente Firebase usada na demonstração Android. Como essas chaves também ficam presentes no APK, a proteção dos dados é feita por Authentication, regras do Firestore e restrições de API. Para trabalhar em um ambiente isolado, crie ou selecione seu próprio projeto, habilite **Authentication por e-mail/senha**, **Cloud Firestore** e **Cloud Messaging**, e então reconfigure o aplicativo:
 
-Crie ou utilize um projeto no Firebase e configure a aplicação Flutter.
+```powershell
+dart pub global activate flutterfire_cli
+flutterfire configure
+```
 
-O projeto utiliza:
-
-* **Firebase Authentication**
-* **Firebase Cloud Firestore**
-
-Configure as informações necessárias no projeto Flutter.
-
-O arquivo relacionado à configuração do Firebase é:
+Confirme que o arquivo foi criado em:
 
 ```text
-lib/firebase_options.dart
+android/app/google-services.json
 ```
 
-> ⚠️ **Atenção:** nunca publique credenciais, chaves privadas ou outras informações sensíveis no repositório.
-
----
-
-## 4. 🗄️ Configure o Supabase Storage
-
-O projeto possui configuração para utilização do **Supabase Storage** para armazenamento de imagens.
-
-### 🪣 Bucket
-
-O bucket utilizado é:
-
-```text
-barbershop-images
-```
-
-### ⚙️ Configuração
-
-| Configuração          | Valor        |
-| --------------------- | ------------ |
-| **Public**            | ON           |
-| **MIME Type**         | `image/jpeg` |
-| **MIME Type**         | `image/png`  |
-| **MIME Type**         | `image/webp` |
-| **Limite de arquivo** | 2 MB         |
-
----
-
-### 🔐 Policies do Storage
-
-As policies utilizadas controlam o acesso às pastas de cada usuário.
-
-#### INSERT
-
-```sql
-create policy "barbershops insert (own folder)"
-on storage.objects for insert to authenticated
-with check (
-  bucket_id = 'barbershop-images'
-  and name like 'barbershops/' || auth.uid() || '/%'
-);
-```
-
-#### UPDATE
-
-```sql
-create policy "barbershops update (own folder)"
-on storage.objects for update to authenticated
-using (
-  bucket_id = 'barbershop-images'
-  and name like 'barbershops/' || auth.uid() || '/%'
-)
-with check (
-  bucket_id = 'barbershop-images'
-  and name like 'barbershops/' || auth.uid() || '/%'
-);
-```
-
-#### SELECT
-
-```sql
-create policy "barbershops select (bucket)"
-on storage.objects for select
-using (bucket_id = 'barbershop-images');
-```
-
----
-
-## 🔐 Configuração com Dart Define
-
-Para executar o projeto utilizando as variáveis do Supabase, podem ser utilizadas variáveis de ambiente através do `dart-define`.
-
-### Windows PowerShell
-
-Configure as variáveis:
+Para publicar as regras e os índices no projeto selecionado:
 
 ```powershell
-$env:SUPABASE_URL="https://YOUR_PROJECT.supabase.co"
-$env:SUPABASE_ANON_KEY="YOUR_ANON_KEY"
+firebase deploy --only firestore
 ```
 
-Execute o projeto:
+### 3. Emulador
 
 ```powershell
-./scripts/run_debug.ps1
+flutter emulators
+flutter emulators --launch Pixel_7_Pro
+flutter devices
+flutter run -d emulator-5554
 ```
 
-### 📦 Gerar o build
+Se aparecer `INSTALL_FAILED_INSUFFICIENT_STORAGE`, abra **Android Studio → Device Manager → menu do emulador → Wipe Data** e inicie o dispositivo novamente.
 
-Para gerar o APK de debug:
+## ✅ Qualidade e testes
 
 ```powershell
-./scripts/build_debug_apk.ps1
-```
-
-> ⚠️ **Atenção:** substitua os valores de exemplo pelas configurações do seu próprio projeto.
->
-> Nunca publique chaves privadas ou outras informações sensíveis no GitHub.
-
----
-
-## 5. ▶️ Execute a aplicação
-
-Depois de configurar todas as dependências:
-
-```bash
-flutter run
-```
-
----
-
-# 📱 Como utilizar
-
-## 👤 Cadastro
-
-O usuário pode criar uma conta utilizando:
-
-* E-mail
-* Senha
-
----
-
-## 🔑 Login
-
-Após o cadastro, o usuário pode acessar a aplicação utilizando suas credenciais.
-
----
-
-## 📅 Agendamento
-
-Para realizar um agendamento:
-
-1. Acesse o calendário.
-2. Selecione uma data.
-3. Escolha um horário disponível.
-4. Confirme o agendamento.
-
----
-
-## ❌ Cancelamento
-
-O usuário pode cancelar um agendamento existente.
-
-Após o cancelamento, o horário é novamente disponibilizado para novos agendamentos.
-
----
-
-# 🧪 Testes
-
-Os testes podem ser executados através do comando:
-
-```bash
+dart format --set-exit-if-changed lib test
+flutter analyze
 flutter test
+node --check functions/index.js
+node --check functions/mercado_pago.js
 ```
 
----
+Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo e contador de notificações.
 
-# 📂 Arquivos ignorados
+## 💳 Mercado Pago
 
-O projeto utiliza o arquivo `.gitignore` para evitar o versionamento de arquivos temporários e arquivos gerados pelo ambiente de desenvolvimento.
+O agendamento com **Dinheiro — pagar no local** funciona independentemente da conexão de pagamentos. Pix e cartão usam uma arquitetura marketplace: cada barbearia autoriza a própria conta, e o backend cria o checkout com o preço obtido do cadastro no Firestore.
 
-Entre eles:
+As Cloud Functions exigem um projeto Firebase no plano **Blaze** para publicação. Enquanto o backend não estiver publicado, o aplicativo mantém automaticamente a alternativa de pagamento no local. Consulte o guia completo em [docs/mercado_pago_setup.md](docs/mercado_pago_setup.md).
 
-```gitignore
-*.class
-*.log
-*.pyc
+## 📦 Release Android
 
-.dart_tool/
-/.pub-cache/
-/build/
+Nunca use uma chave debug em produção. Gere uma chave de upload local e faça backup dos arquivos privados:
 
-.idea/
-.vscode/
+```powershell
+.\scripts\create_upload_keystore.ps1
+.\scripts\build_release.ps1
 ```
 
----
+Saídas esperadas:
 
-# 📚 Aprendizados
-
-O desenvolvimento deste projeto proporcionou experiência prática em diferentes áreas do desenvolvimento mobile, incluindo:
-
-* Desenvolvimento de aplicações com Flutter
-* Programação em Dart
-* Autenticação de usuários
-* Integração com Firebase
-* Persistência de dados utilizando Firestore
-* Integração com serviços externos
-* Gerenciamento de disponibilidade de horários
-* Organização de código
-* Separação entre telas, modelos e serviços
-* Configuração de armazenamento em nuvem
-* Utilização de variáveis de ambiente
-* Execução e geração de builds Flutter
-
----
-
-# 🚧 Possíveis evoluções
-
-Algumas funcionalidades podem ser adicionadas ou aprimoradas futuramente:
-
-* 🔔 Notificações de confirmação de agendamento
-* ⏰ Lembretes automáticos
-* 📊 Painel administrativo
-* 🗓️ Gerenciamento de horários pelo estabelecimento
-* 📜 Histórico completo de agendamentos
-* 💈 Diferentes tipos de serviços
-* 💳 Integração com pagamentos
-* 🎨 Melhorias na experiência do usuário
-
----
-
-# 🤝 Contribuição
-
-Contribuições são bem-vindas.
-
-Para contribuir com o projeto:
-
-### 1. Faça um fork do projeto
-
-### 2. Crie uma branch para sua feature
-
-```bash
-git checkout -b feature/minha-feature
+```text
+build/app/outputs/flutter-apk/app-release.apk
+build/app/outputs/bundle/release/app-release.aab
 ```
 
-### 3. Faça suas alterações
+O **AAB** é o artefato para a Play Store; o **APK** é útil para instalação direta e homologação. Veja o checklist em [docs/PLAY_STORE_RELEASE.md](docs/PLAY_STORE_RELEASE.md).
 
-Implemente e teste as modificações desejadas.
+## 🔐 Privacidade e segurança
 
-### 4. Realize o commit
+- [Política de privacidade](docs/PRIVACY_POLICY.md)
+- [Exclusão de conta e dados](docs/ACCOUNT_DELETION.md)
+- [Política de segurança do repositório](SECURITY.md)
 
-```bash
-git commit -m "Adiciona nova funcionalidade"
-```
+Arquivos realmente sensíveis, como `key.properties`, keystores, tokens OAuth e segredos do backend, permanecem fora do controle de versão. As configurações públicas dos clientes Firebase não concedem acesso administrativo e continuam protegidas pelas regras versionadas neste projeto.
 
-### 5. Envie a branch
+## 🧭 Status e próximos passos
 
-```bash
-git push origin feature/minha-feature
-```
+| Entrega | Status |
+|---|---|
+| Fluxos de cliente e barbeiro | ✅ Implementado |
+| Agenda, histórico e cancelamentos | ✅ Implementado |
+| Chat e notificações no app | ✅ Implementado |
+| Descoberta por proximidade | ✅ Implementado |
+| Dinheiro no local | ✅ Implementado |
+| Mercado Pago Marketplace | 🟡 Código pronto; publicação das Functions pendente do plano Blaze |
+| Release Android assinado | ✅ Automatizado |
+| Publicação na Play Store | 🟡 Requer conta do desenvolvedor, ficha da loja e envio manual do AAB |
 
-### 6. Abra um Pull Request
+Próximas evoluções possíveis: testes de integração com Firebase Emulator Suite, paginação de históricos extensos, observabilidade de produção e painel web administrativo.
 
-Descreva as alterações realizadas e envie o Pull Request para análise.
+## 🤝 Contribuição
 
----
+Issues e pull requests são bem-vindos. Antes de enviar uma alteração, execute a suíte de qualidade e descreva o impacto no fluxo de cliente e/ou barbeiro.
 
-# 📄 Licença
+## 📄 Licença
 
-Este projeto está licenciado sob a **Licença MIT**.
+Distribuído sob a licença MIT. Consulte [LICENSE](LICENSE).
 
-Consulte o arquivo [`LICENSE`](LICENSE) para mais informações.
+## 👨‍💻 Autor
 
----
+**Kennedy Ramos**
 
-# 👨‍💻 Desenvolvedor
-
-## Kennedy Ramos
-
-**Desenvolvedor Full Stack** com foco em **Python e Flutter**.
-
-Tenho interesse em desenvolvimento de:
-
-* 🌐 Aplicações Full Stack
-* ⚙️ APIs e Backend com Python
-* 📱 Aplicações Mobile com Flutter
-* ☁️ Integrações com serviços em nuvem
-
----
-
-# 🔗 Links
-
-* **GitHub:** [KennnedyRamos](https://github.com/KennnedyRamos)
-* **LinkedIn:** [Kennedy Ramos](https://www.linkedin.com/in/kennedy-silva-ramos-566b00150/)
-* **Portfólio:** [Meu Portfólio](https://kennnedyramos.github.io/)
-
----
-
-# ⭐ Apoie o projeto
-
-Se este projeto foi útil ou interessante, considere deixar uma **⭐ estrela no repositório**.
+- [GitHub](https://github.com/KennnedyRamos)
+- [LinkedIn](https://www.linkedin.com/in/kennedy-silva-ramos-566b00150/)
+- [Portfólio](https://kennnedyramos.github.io/)
 
 ---
 
 <div align="center">
-
-### Feito com Flutter, Dart e dedicação por Kennedy Ramos. 🚀
-
+  Feito com Flutter, Dart e dedicação por Kennedy Ramos. 🚀
 </div>
-
----
-
-## 🎯 Objetivo deste README
-
-Este README foi estruturado para apresentar o projeto de forma clara para diferentes públicos:
-
-### 👔 Recrutadores não técnicos
-
-Permite entender rapidamente:
-
-* O que é o projeto
-* Qual problema ele resolve
-* Quais tecnologias foram utilizadas
-* Quais funcionalidades foram desenvolvidas
-
-### 💻 Recrutadores técnicos
-
-Evidencia conhecimentos em:
-
-* Flutter
-* Dart
-* Firebase
-* Firestore
-* Supabase
-* Autenticação
-* Integração com serviços em nuvem
-* Gerenciamento de estado e regras de negócio
-* Organização e separação de responsabilidades
-
-### 👨‍💻 Desenvolvedores
-
-Fornece informações suficientes para:
-
-* Clonar o projeto
-* Configurar as dependências
-* Configurar Firebase
-* Configurar Supabase
-* Executar a aplicação
-* Executar os testes
-* Gerar o build
-
----
-
-## 🚀 Posicionamento profissional
-
-O README foi estruturado para reforçar uma apresentação profissional do projeto e criar um caminho claro para quem deseja conhecer mais sobre o desenvolvedor:
-
-**GitHub → LinkedIn → Portfólio**
-
-O objetivo é apresentar primeiro a capacidade técnica demonstrada no projeto e, posteriormente, direcionar o visitante para os demais canais profissionais.

@@ -1,73 +1,442 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasValidBarbershopLogo() {
+      return !request.resource.data.keys().hasAny(['logoData']) ||
+        request.resource.data.logoData == null ||
+        (request.resource.data.logoData is string &&
+         request.resource.data.logoData.size() <= 250000);
+    }
+
+    function hasValidNotificationFields(userId) {
+      return request.resource.data.keys().hasAll([
+          'userId', 'actorId', 'type', 'title', 'body', 'isRead', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'userId', 'actorId', 'appointmentId', 'type', 'title', 'body',
+          'isRead', 'createdAt', 'conversationId', 'messageId', 'barberId',
+          'clientId', 'barbershopId', 'barbershopName', 'clientName'
+        ]) &&
+        request.resource.data.userId == userId &&
+        request.resource.data.actorId == request.auth.uid &&
+        request.resource.data.type is string &&
+        request.resource.data.title is string &&
+        request.resource.data.title.size() <= 100 &&
+        request.resource.data.body is string &&
+        request.resource.data.body.size() <= 1000 &&
+        request.resource.data.isRead == false &&
+        request.resource.data.createdAt == request.time;
+    }
+
+    function canCreateAppointmentNotification(userId, notificationId) {
+      let appointmentId = request.resource.data.appointmentId;
+      let appointmentPath = /databases/$(database)/documents/appointments/$(appointmentId);
+      let appointment = getAfter(appointmentPath).data;
+      let recipientIsClient = userId == appointment.clientId;
+      let recipientIsBarber = userId == appointment.barberId;
+      let actorIsParticipant = request.auth.uid == appointment.clientId ||
+        request.auth.uid == appointment.barberId;
+      let expectedCreatedId = appointmentId + (recipientIsClient
+        ? '_created_client' : '_created_barber');
+      let expectedCancelledId = appointmentId + (recipientIsClient
+        ? '_cancelled_client' : '_cancelled_barber');
+      let expectedCompletedId = appointmentId + (recipientIsClient
+        ? '_completed_client' : '_completed_barber');
+      return hasValidNotificationFields(userId) &&
+        request.resource.data.appointmentId is string &&
+        existsAfter(appointmentPath) &&
+        (recipientIsClient || recipientIsBarber) && actorIsParticipant &&
+        ((request.resource.data.type == 'appointment_created' &&
+          appointment.status == 'active' &&
+          notificationId == expectedCreatedId) ||
+         (request.resource.data.type == 'appointment_cancelled' &&
+          appointment.status == 'cancelled' &&
+          notificationId == expectedCancelledId) ||
+         (request.resource.data.type == 'appointment_completed' &&
+          appointment.status == 'completed' &&
+          notificationId == expectedCompletedId));
+    }
+
+    function canCreateMessageNotification(userId, notificationId) {
+      let conversationId = request.resource.data.conversationId;
+      let messageId = request.resource.data.messageId;
+      let conversationPath = /databases/$(database)/documents/conversations/$(conversationId);
+      let messagePath = /databases/$(database)/documents/conversations/$(conversationId)/messages/$(messageId);
+      let conversation = getAfter(conversationPath).data;
+      let message = getAfter(messagePath).data;
+      let recipientId = request.auth.uid == conversation.clientId
+        ? conversation.barberId : conversation.clientId;
+      return hasValidNotificationFields(userId) &&
+        request.resource.data.keys().hasAll([
+          'conversationId', 'messageId', 'barberId', 'clientId',
+          'barbershopId', 'barbershopName', 'clientName'
+        ]) &&
+        request.resource.data.conversationId is string &&
+        request.resource.data.messageId is string &&
+        existsAfter(conversationPath) && existsAfter(messagePath) &&
+        (request.auth.uid == conversation.clientId ||
+         request.auth.uid == conversation.barberId) &&
+        userId == recipientId &&
+        message.senderId == request.auth.uid &&
+        request.resource.data.actorId == message.senderId &&
+        request.resource.data.body == message.text &&
+        request.resource.data.type == 'message_received' &&
+        request.resource.data.barberId == conversation.barberId &&
+        request.resource.data.clientId == conversation.clientId &&
+        request.resource.data.barbershopId == conversation.barbershopId &&
+        request.resource.data.barbershopName == conversation.barbershopName &&
+        request.resource.data.clientName == conversation.clientName &&
+        notificationId == conversationId + '_' + messageId + '_message';
+    }
+
+    function isConversationParticipant(conversation) {
+      return isSignedIn() &&
+        (request.auth.uid == conversation.clientId ||
+         request.auth.uid == conversation.barberId);
+    }
+
+    function conversationIdIncludesCurrentUser(conversationId) {
+      return isSignedIn() &&
+        (conversationId.matches('^' + request.auth.uid + '_.*') ||
+         conversationId.matches('.*_' + request.auth.uid + '$'));
+    }
+
+    function hasValidConversationIdentity(conversationId, conversation) {
+      return conversation.keys().hasAll([
+          'barberId', 'clientId', 'barbershopId', 'barbershopName',
+          'clientName', 'lastMessage', 'lastMessageAt', 'lastSenderId',
+          'createdAt', 'updatedAt'
+        ]) &&
+        conversation.keys().hasOnly([
+          'barberId', 'clientId', 'barbershopId', 'barbershopName',
+          'clientName', 'lastMessage', 'lastMessageAt', 'lastSenderId',
+          'createdAt', 'updatedAt'
+        ]) &&
+        conversationId == conversation.barberId + '_' + conversation.clientId &&
+        conversation.barberId is string &&
+        conversation.clientId is string &&
+        conversation.barbershopId is string &&
+        conversation.barbershopName is string &&
+        conversation.barbershopName.size() <= 120 &&
+        conversation.clientName is string &&
+        conversation.clientName.size() <= 120 &&
+        conversation.lastMessage is string &&
+        conversation.lastMessage.size() > 0 &&
+        conversation.lastMessage.size() <= 1000 &&
+        conversation.lastSenderId is string;
+    }
+
+    function hasValidCashAppointment() {
+      let appointment = request.resource.data;
+      let shopPath = /databases/$(database)/documents/barbershops/$(appointment.barbershopId);
+      return appointment.keys().hasAll([
+          'barberId', 'barbershopId', 'barbershopName', 'clientId',
+          'clientName', 'date', 'hour', 'serviceName', 'servicePrice',
+          'status', 'paid', 'paymentMethod', 'paymentStatus', 'monthlyPlanId',
+          'isMonthlyPlan', 'scheduledAt', 'createdAt'
+        ]) &&
+        appointment.keys().hasOnly([
+          'barberId', 'barbershopId', 'barbershopName', 'clientId',
+          'clientName', 'date', 'hour', 'serviceName', 'servicePrice',
+          'status', 'paid', 'paymentMethod', 'paymentStatus', 'monthlyPlanId',
+          'isMonthlyPlan', 'scheduledAt', 'createdAt'
+        ]) &&
+        request.auth.uid == appointment.clientId &&
+        exists(shopPath) &&
+        appointment.barbershopId == appointment.barberId &&
+        get(shopPath).data.ownerId == appointment.barberId &&
+        appointment.clientName is string &&
+        appointment.clientName.size() > 0 &&
+        appointment.clientName.size() <= 120 &&
+        appointment.barbershopName is string &&
+        appointment.barbershopName.size() > 0 &&
+        appointment.barbershopName.size() <= 120 &&
+        appointment.serviceName is string &&
+        appointment.serviceName.size() > 0 &&
+        appointment.serviceName.size() <= 120 &&
+        appointment.servicePrice is number &&
+        appointment.servicePrice >= 0 &&
+        appointment.servicePrice <= 100000 &&
+        appointment.date is string &&
+        appointment.date.matches('^\\d{4}-\\d{2}-\\d{2}$') &&
+        appointment.hour is string &&
+        appointment.hour.matches('^([01]\\d|2[0-3])$') &&
+        appointment.status == 'active' &&
+        appointment.paid == false &&
+        (appointment.paymentMethod == 'cash' ||
+         appointment.paymentMethod == 'pay_at_shop') &&
+        appointment.paymentStatus == 'pay_at_shop' &&
+        appointment.isMonthlyPlan is bool &&
+        (!appointment.isMonthlyPlan || appointment.monthlyPlanId is string) &&
+        appointment.scheduledAt is timestamp &&
+        appointment.scheduledAt > request.time &&
+        appointment.createdAt == request.time;
+    }
+
+    function canCancelAppointment() {
+      let changedFields = request.resource.data.diff(resource.data).affectedKeys();
+      let isClient = request.auth.uid == resource.data.clientId;
+      let isBarber = request.auth.uid == resource.data.barberId;
+      return resource.data.status == 'active' &&
+        request.resource.data.status == 'cancelled' &&
+        changedFields.hasOnly([
+          'status', 'cancelledBy', 'cancelledByUserId', 'cancelReason',
+          'cancelledAt'
+        ]) &&
+        request.resource.data.cancelledByUserId == request.auth.uid &&
+        ((isClient && request.resource.data.cancelledBy == 'client' &&
+          resource.data.scheduledAt is timestamp &&
+          request.time <= resource.data.scheduledAt - duration.value(6, 'h')) ||
+         (isBarber && request.resource.data.cancelledBy == 'barber')) &&
+        request.resource.data.cancelReason is string &&
+        request.resource.data.cancelReason.size() > 0 &&
+        request.resource.data.cancelReason.size() <= 500 &&
+        request.resource.data.cancelledAt == request.time;
+    }
+
+    function canCompleteAppointment() {
+      return request.auth.uid == resource.data.barberId &&
+        resource.data.status == 'active' &&
+        request.resource.data.status == 'completed' &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'completedAt']) &&
+        request.resource.data.completedAt == request.time;
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
+
+      match /notifications/{notificationId} {
+        allow read, delete: if isSignedIn() && request.auth.uid == userId;
+        allow create: if isSignedIn() &&
+          (((request.resource.data.type == 'appointment_created' ||
+             request.resource.data.type == 'appointment_cancelled' ||
+             request.resource.data.type == 'appointment_completed') &&
+            canCreateAppointmentNotification(userId, notificationId)) ||
+           (request.resource.data.type == 'message_received' &&
+            canCreateMessageNotification(userId, notificationId)));
+        allow update: if isSignedIn() &&
+          request.auth.uid == userId &&
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['isRead']) &&
+          request.resource.data.isRead == true;
+      }
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if conversationIdIncludesCurrentUser(conversationId);
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.clientId &&
+        hasValidConversationIdentity(conversationId, request.resource.data) &&
+        request.resource.data.lastSenderId == request.auth.uid &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time &&
+        request.resource.data.lastMessageAt == request.time &&
+        exists(/databases/$(database)/documents/barbershops/$(request.resource.data.barbershopId)) &&
+        get(/databases/$(database)/documents/barbershops/$(request.resource.data.barbershopId)).data.ownerId == request.resource.data.barberId;
+      allow update: if isConversationParticipant(resource.data) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'lastMessage', 'lastMessageAt', 'lastSenderId', 'updatedAt'
+        ]) &&
+        request.resource.data.lastSenderId == request.auth.uid &&
+        request.resource.data.lastMessage is string &&
+        request.resource.data.lastMessage.size() > 0 &&
+        request.resource.data.lastMessage.size() <= 1000 &&
+        request.resource.data.lastMessageAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if conversationIdIncludesCurrentUser(conversationId);
+        allow create: if isSignedIn() &&
+          existsAfter(/databases/$(database)/documents/conversations/$(conversationId)) &&
+          isConversationParticipant(
+            getAfter(/databases/$(database)/documents/conversations/$(conversationId)).data
+          ) &&
+          request.resource.data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
+          request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt']) &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 &&
+          request.resource.data.text.size() <= 1000 &&
+          request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
     }
 
     match /barbershops/{barberId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == barberId;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.auth.uid == barberId &&
+        request.resource.data.ownerId == barberId &&
+        !request.resource.data.keys().hasAny([
+          'paymentConnected', 'paymentProvider', 'paymentsUpdatedAt'
+        ]) &&
+        hasValidBarbershopLogo();
+      allow update: if isSignedIn() &&
+        request.auth.uid == barberId &&
+        resource.data.ownerId == barberId &&
+        request.resource.data.ownerId == barberId &&
+        hasValidBarbershopLogo() &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'ownerId', 'paymentConnected', 'paymentProvider', 'paymentsUpdatedAt'
+        ]);
+      allow delete: if isSignedIn() && request.auth.uid == barberId;
     }
 
     match /appointments/{appointmentId} {
-      allow read: if request.auth != null &&
+      allow read: if isSignedIn() &&
         (request.auth.uid == resource.data.clientId ||
          request.auth.uid == resource.data.barberId);
-
-      allow create: if request.auth != null &&
-        request.auth.uid == request.resource.data.clientId;
-
-      allow update: if request.auth != null &&
-        (request.auth.uid == resource.data.clientId ||
-         request.auth.uid == resource.data.barberId) &&
-        (request.resource.data.status == resource.data.status ||
-         request.resource.data.status == 'cancelled');
-
+      allow create: if isSignedIn() && hasValidCashAppointment();
+      allow update: if isSignedIn() &&
+        (canCancelAppointment() || canCompleteAppointment());
       allow delete: if false;
     }
 
     match /slots/{slotId} {
-      allow read, create: if request.auth != null;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.keys().hasAll([
+          'barberId', 'clientId', 'date', 'hour', 'appointmentId', 'createdAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'barberId', 'clientId', 'date', 'hour', 'appointmentId', 'createdAt'
+        ]) &&
+        request.auth.uid == request.resource.data.clientId &&
+        slotId == request.resource.data.barberId + '_' +
+          request.resource.data.date + '_' + request.resource.data.hour &&
+        request.resource.data.createdAt == request.time &&
+        existsAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)) &&
+        getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.barberId == request.resource.data.barberId &&
+        getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.clientId == request.resource.data.clientId &&
+        getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.date == request.resource.data.date &&
+        getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.hour == request.resource.data.hour &&
+        getAfter(/databases/$(database)/documents/appointments/$(request.resource.data.appointmentId)).data.status == 'active';
       allow update: if false;
-      allow delete: if request.auth != null &&
+      allow delete: if isSignedIn() &&
         (request.auth.uid == resource.data.barberId ||
-         request.auth.uid == resource.data.clientId ||
-         resource.data.clientId == null);
+         request.auth.uid == resource.data.clientId) &&
+        existsAfter(/databases/$(database)/documents/appointments/$(resource.data.appointmentId)) &&
+        getAfter(/databases/$(database)/documents/appointments/$(resource.data.appointmentId)).data.status == 'cancelled' &&
+        getAfter(/databases/$(database)/documents/appointments/$(resource.data.appointmentId)).data.cancelledByUserId == request.auth.uid;
     }
 
     match /reviews/{reviewId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null &&
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() &&
+        reviewId == request.resource.data.barberId + '_' + request.resource.data.clientId &&
+        request.resource.data.keys().hasAll([
+          'barberId', 'clientId', 'rating', 'comment', 'createdAt', 'updatedAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'barberId', 'clientId', 'rating', 'comment', 'createdAt', 'updatedAt'
+        ]) &&
         request.auth.uid == request.resource.data.clientId &&
+        exists(/databases/$(database)/documents/barbershops/$(request.resource.data.barberId)) &&
+        request.resource.data.rating is int &&
         request.resource.data.rating >= 1 &&
-        request.resource.data.rating <= 5;
-      allow update: if request.auth != null &&
+        request.resource.data.rating <= 5 &&
+        (request.resource.data.comment == null ||
+         (request.resource.data.comment is string &&
+          request.resource.data.comment.size() <= 1000)) &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.updatedAt == request.time;
+      allow update: if isSignedIn() &&
         request.auth.uid == resource.data.clientId &&
         request.resource.data.clientId == resource.data.clientId &&
         request.resource.data.barberId == resource.data.barberId &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['rating', 'comment', 'updatedAt']) &&
+        request.resource.data.rating is int &&
         request.resource.data.rating >= 1 &&
-        request.resource.data.rating <= 5;
+        request.resource.data.rating <= 5 &&
+        (request.resource.data.comment == null ||
+         (request.resource.data.comment is string &&
+          request.resource.data.comment.size() <= 1000)) &&
+        request.resource.data.updatedAt == request.time;
       allow delete: if false;
     }
 
-    match /monthly_plans/{planId} {
-      allow read: if request.auth != null;
-      allow create, update: if request.auth != null &&
-        request.auth.uid == request.resource.data.clientId;
+    match /monthly_plans/{subscriptionId} {
+      allow read: if isSignedIn() &&
+        (request.auth.uid == resource.data.clientId ||
+         request.auth.uid == resource.data.barberId);
+      allow create: if isSignedIn() &&
+        request.auth.uid == request.resource.data.clientId &&
+        subscriptionId == request.resource.data.clientId + '_' +
+          request.resource.data.barberId &&
+        request.resource.data.keys().hasAll([
+          'clientId', 'barberId', 'barbershopId', 'weekday', 'hour', 'price',
+          'planId', 'planName', 'planServices', 'updatedAt'
+        ]) &&
+        request.resource.data.keys().hasOnly([
+          'clientId', 'barberId', 'barbershopId', 'weekday', 'hour', 'price',
+          'planId', 'planName', 'planServices', 'updatedAt'
+        ]) &&
+        request.resource.data.barbershopId == request.resource.data.barberId &&
+        exists(/databases/$(database)/documents/barbershops/$(request.resource.data.barbershopId)) &&
+        request.resource.data.weekday is int &&
+        request.resource.data.weekday >= 1 &&
+        request.resource.data.weekday <= 7 &&
+        request.resource.data.hour is string &&
+        request.resource.data.hour.matches('^([01]\\d|2[0-3])$') &&
+        request.resource.data.price is number &&
+        request.resource.data.price >= 0 &&
+        request.resource.data.planId is string &&
+        request.resource.data.planName is string &&
+        request.resource.data.planServices is list &&
+        request.resource.data.updatedAt == request.time;
+      allow update: if isSignedIn() &&
+        request.auth.uid == resource.data.clientId &&
+        request.resource.data.clientId == resource.data.clientId &&
+        request.resource.data.barberId == resource.data.barberId &&
+        request.resource.data.barbershopId == resource.data.barbershopId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'weekday', 'hour', 'price', 'planId', 'planName', 'planServices',
+          'updatedAt'
+        ]) &&
+        request.resource.data.weekday is int &&
+        request.resource.data.weekday >= 1 &&
+        request.resource.data.weekday <= 7 &&
+        request.resource.data.hour is string &&
+        request.resource.data.hour.matches('^([01]\\d|2[0-3])$') &&
+        request.resource.data.price is number &&
+        request.resource.data.price >= 0 &&
+        request.resource.data.updatedAt == request.time;
       allow delete: if false;
     }
 
-    match /clientes/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    match /clientes/{document=**} {
+      allow read, write: if false;
     }
 
-    match /app_agenda/{docId} {
-      allow read, write: if request.auth != null;
+    match /app_agenda/{document=**} {
+      allow read, write: if false;
     }
 
-    match /unavailable_hours/{docId} {
-      allow read, write: if request.auth != null;
+    match /unavailable_hours/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /payment_accounts/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /payment_intents/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /payment_slot_holds/{document=**} {
+      allow read, write: if false;
+    }
+
+    match /mercado_pago_oauth_states/{document=**} {
+      allow read, write: if false;
     }
   }
 }

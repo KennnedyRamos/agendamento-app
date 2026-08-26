@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class ReviewService {
@@ -19,27 +19,21 @@ class ReviewService {
     }
 
     final reviewId = '${barberId}_${user.uid}';
-    final data = {
-      'barberId': barberId,
-      'clientId': user.uid,
-      'rating': rating,
-      'comment': comment?.trim(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
-    try {
-      await _db.collection('reviews').doc(reviewId).set(
-            data,
-            SetOptions(merge: true),
-          );
-    } on FirebaseException catch (e) {
-      if (e.code == 'permission-denied') {
-        // Fallback for older rules: create a new review document.
-        await _db.collection('reviews').add(data);
-      } else {
-        rethrow;
+    final reviewRef = _db.collection('reviews').doc(reviewId);
+    await _db.runTransaction((transaction) async {
+      final snapshot = await transaction.get(reviewRef);
+      final data = <String, dynamic>{
+        'barberId': barberId,
+        'clientId': user.uid,
+        'rating': rating,
+        'comment': comment?.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (!snapshot.exists) {
+        data['createdAt'] = FieldValue.serverTimestamp();
       }
-    }
+      transaction.set(reviewRef, data, SetOptions(merge: true));
+    });
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> watchReviewsForBarber(
@@ -78,4 +72,3 @@ class ReviewService {
     return null;
   }
 }
-

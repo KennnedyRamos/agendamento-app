@@ -1,7 +1,7 @@
-﻿import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/models/barbershop.dart';
 import 'package:agendamento_app/app/models/monthly_plan.dart';
-import 'package:agendamento_app/app/services/appointment_service.dart';
 import 'package:agendamento_app/app/services/app_firestore_service.dart';
+import 'package:agendamento_app/app/services/appointment_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -160,7 +160,8 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                       setModalState(() {
                         selectedDay = value;
                         final newHours = _hoursForDay(value);
-                        selectedHour = newHours.isNotEmpty ? newHours.first : '';
+                        selectedHour =
+                            newHours.isNotEmpty ? newHours.first : '';
                       });
                     },
                   ),
@@ -200,10 +201,9 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
                   child: const Text('Cancelar'),
                 ),
                 TextButton(
-                  onPressed:
-                      !hasHours || (selectedHour ?? '').isEmpty
-                          ? null
-                          : () => Navigator.pop(context, true),
+                  onPressed: !hasHours || (selectedHour ?? '').isEmpty
+                      ? null
+                      : () => Navigator.pop(context, true),
                   child: const Text('Confirmar'),
                 ),
               ],
@@ -291,4 +291,3 @@ class _PlanDetailsPageState extends State<PlanDetailsPage> {
     );
   }
 }
-

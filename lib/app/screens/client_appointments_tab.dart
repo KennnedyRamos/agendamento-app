@@ -1,15 +1,15 @@
-﻿import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/services/app_firestore_service.dart';
 import 'package:agendamento_app/app/services/appointment_service.dart';
 import 'package:agendamento_app/app/services/notification_service.dart';
 import 'package:agendamento_app/app/services/review_service.dart';
-import 'package:agendamento_app/app/services/app_firestore_service.dart';
+import 'package:agendamento_app/app/utils/cancellation_utils.dart';
+import 'package:agendamento_app/app/widgets/confirm_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:agendamento_app/app/widgets/confirm_dialog.dart';
 
 class ClientAppointmentsTab extends StatefulWidget {
   const ClientAppointmentsTab({super.key});
@@ -88,6 +88,7 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
       try {
         await _appointmentService.cancelAppointment(
           appointmentId: appointmentId,
+          cancelledBy: 'client',
           reason: 'Cancelado pelo cliente',
         );
         await NotificationService().showNotification(
@@ -510,6 +511,8 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                   final cancelReason = data['cancelReason'] ?? '';
                   final barberId = data['barberId'] ?? '';
                   final paid = data['paid'] == true;
+                  final paymentMethod = data['paymentMethod']?.toString() ?? '';
+                  final isCashPayment = paymentMethod == 'cash';
                   final isMonthlyPlan = data['isMonthlyPlan'] == true;
                   final servicePrice = (data['servicePrice'] is num)
                       ? data['servicePrice'] as num
@@ -522,28 +525,33 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                       status == 'active' && _canCancel(date, hour);
                   final isCancelled = status == 'cancelled';
                   final isCompleted = status == 'completed';
+                  final statusLabel = isCancelled
+                      ? cancellationLabelForClient(data)
+                      : (isCompleted ? 'Concluído' : 'Ativo');
                   final canReview =
                       _canReview(date, hour, status) && barberId != '';
-                  final showPay =
-                      !paid && status == 'active' && _canPay(date, hour);
+                  final showPay = !paid &&
+                      !isCashPayment &&
+                      status == 'active' &&
+                      _canPay(date, hour);
 
-            final scheme = Theme.of(context).colorScheme;
-            final statusBg = isCancelled
-                ? scheme.errorContainer
-                : (isCompleted
-                    ? scheme.secondaryContainer
-                    : scheme.primaryContainer);
-            final statusFg = isCancelled
-                ? scheme.onErrorContainer
-                : (isCompleted
-                    ? scheme.onSecondaryContainer
-                    : scheme.onPrimaryContainer);
+                  final scheme = Theme.of(context).colorScheme;
+                  final statusBg = isCancelled
+                      ? scheme.errorContainer
+                      : (isCompleted
+                          ? scheme.secondaryContainer
+                          : scheme.primaryContainer);
+                  final statusFg = isCancelled
+                      ? scheme.onErrorContainer
+                      : (isCompleted
+                          ? scheme.onSecondaryContainer
+                          : scheme.onPrimaryContainer);
 
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 6.0),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6.0),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
@@ -556,18 +564,16 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                                       fontWeight: FontWeight.w600),
                                 ),
                               ),
-                        Chip(
-                          label: Text(
-                            isCancelled
-                                ? 'Cancelado'
-                                : (isCompleted ? 'Concluído' : 'Ativo'),
-                            style: TextStyle(
-                              color: statusFg,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          backgroundColor: statusBg,
-                        ),
+                              Chip(
+                                label: Text(
+                                  statusLabel,
+                                  style: TextStyle(
+                                    color: statusFg,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                backgroundColor: statusBg,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -575,6 +581,27 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                             'Data: $formattedDate às $hour:00'
                             '${isCancelled && cancelReason.toString().isNotEmpty ? '\nMotivo: $cancelReason' : ''}',
                           ),
+                          if (isCashPayment && !isCancelled)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.payments_rounded,
+                                    size: 17,
+                                    color: scheme.primary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Pagamento no local: Dinheiro',
+                                    style: TextStyle(
+                                      color: scheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           if (status == 'active' && !canCancel)
                             const Padding(
                               padding: EdgeInsets.only(top: 4.0),
@@ -587,8 +614,7 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                               onPressed: canCancel
                                   ? () => _cancelAppointment(data)
                                   : null,
-                              icon: const Icon(CupertinoIcons.xmark_circle_fill,
-                                  size: 18),
+                              icon: const Icon(Icons.cancel_rounded, size: 18),
                               label: const Text('Cancelar'),
                               style: TextButton.styleFrom(
                                 padding: EdgeInsets.zero,
@@ -744,33 +770,33 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                               },
                             ),
                           const SizedBox(height: 6),
-                    if (showPay)
-                      ActionChip(
-                        label: Text(
-                          'Pagar',
-                          style: TextStyle(
-                            color: scheme.onPrimaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        backgroundColor: scheme.primaryContainer,
-                        onPressed: () => _showPixDialog(
-                          barberId: barberId,
-                          barbershopId: data['barbershopId'] ?? '',
-                          amountLabel: currency.format(servicePrice),
-                        ),
-                      )
-                    else if (paid && isCompleted)
-                      Chip(
-                        label: Text(
-                          'Pago',
-                          style: TextStyle(
-                            color: scheme.onSecondaryContainer,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        backgroundColor: scheme.secondaryContainer,
-                      ),
+                          if (showPay)
+                            ActionChip(
+                              label: Text(
+                                'Pagar',
+                                style: TextStyle(
+                                  color: scheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: scheme.primaryContainer,
+                              onPressed: () => _showPixDialog(
+                                barberId: barberId,
+                                barbershopId: data['barbershopId'] ?? '',
+                                amountLabel: currency.format(servicePrice),
+                              ),
+                            )
+                          else if (paid && isCompleted)
+                            Chip(
+                              label: Text(
+                                'Pago',
+                                style: TextStyle(
+                                  color: scheme.onSecondaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              backgroundColor: scheme.secondaryContainer,
+                            ),
                         ],
                       ),
                     ),

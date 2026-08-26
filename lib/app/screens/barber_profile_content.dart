@@ -1,12 +1,15 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:agendamento_app/app/models/monthly_plan.dart';
 import 'package:agendamento_app/app/models/service_item.dart';
 import 'package:agendamento_app/app/screens/map_picker_page.dart';
 import 'package:agendamento_app/app/services/app_firestore_service.dart';
-import 'package:agendamento_app/app/services/supabase_storage_service.dart';
+import 'package:agendamento_app/app/services/barbershop_logo_service.dart';
 import 'package:agendamento_app/app/utils/availability_utils.dart';
 import 'package:agendamento_app/app/utils/map_utils.dart';
+import 'package:agendamento_app/app/widgets/barbershop_image.dart';
+import 'package:agendamento_app/app/widgets/legal_links_card.dart';
+import 'package:agendamento_app/app/widgets/mercado_pago_connect_card.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -52,7 +55,7 @@ class _PlanFormItem {
 
 class _BarberProfileContentState extends State<BarberProfileContent> {
   final AppFirestoreService _firestoreService = AppFirestoreService();
-  final SupabaseStorageService _storageService = SupabaseStorageService();
+  final BarbershopLogoService _logoService = BarbershopLogoService();
   final TextEditingController _nomeController = TextEditingController();
   final TextEditingController _sobrenomeController = TextEditingController();
   final TextEditingController _telefoneController = TextEditingController();
@@ -76,11 +79,12 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
   int _endHour = 18;
   double? _locationLat;
   double? _locationLng;
-  bool _isGeocoding = false;
 
   String? _currentImageUrl;
+  String? _currentLogoData;
   File? _selectedImage;
   bool _loading = true;
+  bool _savingBarbershop = false;
 
   Map<String, dynamic> _currentEnderecoMap() {
     return {
@@ -144,6 +148,7 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
       _numeroController.text = shop.endereco['numero'] ?? '';
       _cepController.text = shop.endereco['cep'] ?? '';
       _currentImageUrl = shop.imageUrl;
+      _currentLogoData = shop.logoData;
       _pixKeyController.text = shop.pixKey ?? '';
       _pixBankController.text = shop.pixBankName ?? '';
       _pixKeyType = shop.pixKeyType ?? 'telefone';
@@ -263,23 +268,23 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
 
   Future<void> _saveBarbershop() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null || _savingBarbershop) return;
 
-    BarbershopImageUploadResult? uploadResult;
+    String? newLogoData;
     if (_selectedImage != null) {
       try {
-        uploadResult = await _storageService.uploadBarbershopImage(
-          userId: user.uid,
-          file: _selectedImage!,
-        );
-        _currentImageUrl = uploadResult.imageUrl;
+        setState(() => _savingBarbershop = true);
+        newLogoData = await _logoService.prepareLogo(_selectedImage!);
       } catch (e) {
         if (!mounted) return;
+        setState(() => _savingBarbershop = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao enviar imagem: ${e.toString()}')),
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
         );
         return;
       }
+    } else {
+      setState(() => _savingBarbershop = true);
     }
     final endereco = {
       'bairro': _bairroController.text.trim(),
@@ -295,36 +300,48 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
       endHour: _endHour,
     );
 
-    await _firestoreService.updateBarbershop(
-      ownerId: user.uid,
-      nome: _shopNameController.text.trim(),
-      telefone: _telefoneController.text.trim(),
-      endereco: endereco,
-      location: (_locationLat != null && _locationLng != null)
-          ? {
-              'lat': _locationLat!,
-              'lng': _locationLng!,
-            }
-          : null,
-      locationLabel: _locationLabelController.text.trim(),
-      imageUrl: uploadResult?.imageUrl,
-      imageThumbUrl: uploadResult?.thumbUrl,
-      services: _buildServices(),
-      availability: availability,
-      monthlyPlans: _buildMonthlyPlans(),
-      pixKey: _pixKeyController.text.trim().isEmpty
-          ? null
-          : _pixKeyController.text.trim(),
-      pixKeyType: _pixKeyType,
-      pixBankName: _pixBankController.text.trim().isEmpty
-          ? null
-          : _pixBankController.text.trim(),
-    );
+    try {
+      await _firestoreService.updateBarbershop(
+        ownerId: user.uid,
+        nome: _shopNameController.text.trim(),
+        telefone: _telefoneController.text.trim(),
+        endereco: endereco,
+        location: (_locationLat != null && _locationLng != null)
+            ? {
+                'lat': _locationLat!,
+                'lng': _locationLng!,
+              }
+            : null,
+        locationLabel: _locationLabelController.text.trim(),
+        logoData: newLogoData,
+        services: _buildServices(),
+        availability: availability,
+        monthlyPlans: _buildMonthlyPlans(),
+        pixKey: _pixKeyController.text.trim().isEmpty
+            ? null
+            : _pixKeyController.text.trim(),
+        pixKeyType: _pixKeyType,
+        pixBankName: _pixBankController.text.trim().isEmpty
+            ? null
+            : _pixBankController.text.trim(),
+      );
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Barbearia atualizada.')),
-    );
+      if (!mounted) return;
+      setState(() {
+        if (newLogoData != null) _currentLogoData = newLogoData;
+        _selectedImage = null;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Barbearia atualizada.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao salvar: ${e.toString()}')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingBarbershop = false);
+    }
   }
 
   @override
@@ -349,6 +366,8 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
       child: ListView(
         padding: const EdgeInsets.all(16.0),
         children: [
+          const MercadoPagoConnectCard(),
+          const SizedBox(height: 18),
           const Text(
             'Dados pessoais',
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -436,11 +455,11 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
                 initial = LatLng(_locationLat!, _locationLng!);
               } else {
                 final address = MapUtils.buildAddress(_currentEnderecoMap());
-                await _setGeocoding(true);
+                _setGeocoding(true);
                 final geocoded = await MapUtils.geocodeAddress(address);
-                await _setGeocoding(false);
+                _setGeocoding(false);
+                if (!context.mounted) return;
                 if (geocoded == null) {
-                  if (!mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text(
@@ -452,13 +471,14 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
                 }
                 initial = geocoded;
               }
+              if (!context.mounted) return;
               final result = await Navigator.push<LatLng>(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      MapPickerPage(initialPosition: initial),
+                  builder: (context) => MapPickerPage(initialPosition: initial),
                 ),
               );
+              if (!mounted) return;
               if (result != null) {
                 setState(() {
                   _locationLat = result.latitude;
@@ -472,8 +492,8 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
           const SizedBox(height: 6),
           TextField(
             controller: _locationLabelController,
-            decoration:
-                const InputDecoration(labelText: 'Referência do local (opcional)'),
+            decoration: const InputDecoration(
+                labelText: 'Referência do local (opcional)'),
           ),
           if (_locationLat != null && _locationLng != null)
             Padding(
@@ -536,32 +556,41 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
             icon: const Icon(Icons.add),
             label: const Text('Adicionar plano'),
           ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: _pickImage,
-            icon: const Icon(Icons.image),
-            label: Text(_selectedImage == null
-                ? 'Atualizar imagem'
-                : 'Imagem selecionada'),
+          const SizedBox(height: 16),
+          Text(
+            'Logo da barbearia',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          if (_selectedImage != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child:
-                    Image.file(_selectedImage!, height: 140, fit: BoxFit.cover),
-              ),
-            )
-          else if (_currentImageUrl != null && _currentImageUrl!.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.network(_currentImageUrl!,
-                    height: 140, fit: BoxFit.cover),
-              ),
+          const SizedBox(height: 4),
+          Text(
+            'Ela aparecerá para os clientes. Se nenhuma logo for escolhida, '
+            'a imagem padrão continuará sendo usada.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: SizedBox(
+              height: 160,
+              width: double.infinity,
+              child: _selectedImage != null
+                  ? Image.file(_selectedImage!, fit: BoxFit.cover)
+                  : BarbershopImage(
+                      logoData: _currentLogoData,
+                      imageUrl: _currentImageUrl,
+                    ),
             ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _savingBarbershop ? null : _pickImage,
+            icon: const Icon(Icons.add_photo_alternate_rounded),
+            label: Text(
+              _selectedImage == null
+                  ? 'Escolher ou trocar logo'
+                  : 'Trocar logo selecionada',
+            ),
+          ),
           const SizedBox(height: 12),
           const Text(
             'Serviços e preços',
@@ -663,9 +692,13 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
           ),
           const SizedBox(height: 12),
           ElevatedButton(
-            onPressed: _saveBarbershop,
-            child: const Text('Salvar barbearia'),
+            onPressed: _savingBarbershop ? null : _saveBarbershop,
+            child: Text(
+              _savingBarbershop ? 'Salvando...' : 'Salvar barbearia',
+            ),
           ),
+          const SizedBox(height: 20),
+          const LegalLinksCard(),
         ],
       ),
     );
@@ -709,11 +742,8 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
     return widgets;
   }
 
-  Future<void> _setGeocoding(bool value) async {
+  void _setGeocoding(bool value) {
     if (!mounted) return;
-    setState(() {
-      _isGeocoding = value;
-    });
     if (value) {
       showDialog(
         context: context,
@@ -785,4 +815,3 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
     return widgets;
   }
 }
-

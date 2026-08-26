@@ -1,14 +1,15 @@
-﻿import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/models/barbershop.dart';
 import 'package:agendamento_app/app/models/service_item.dart';
 import 'package:agendamento_app/app/screens/plan_details_page.dart';
 import 'package:agendamento_app/app/services/app_firestore_service.dart';
 import 'package:agendamento_app/app/services/appointment_service.dart';
 import 'package:agendamento_app/app/services/review_service.dart';
 import 'package:agendamento_app/app/utils/map_utils.dart';
+import 'package:agendamento_app/app/widgets/barbershop_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class BarbershopDetailPage extends StatefulWidget {
@@ -133,15 +134,15 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
         child: ListView(
           padding: const EdgeInsets.all(16.0),
           children: [
-            if (shop.imageUrl != null && shop.imageUrl!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  shop.imageUrl!,
-                  height: 180,
-                  fit: BoxFit.cover,
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BarbershopImage(
+                logoData: shop.logoData,
+                imageUrl: shop.imageUrl,
+                height: 180,
+                width: double.infinity,
               ),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -149,8 +150,8 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
                   child: Text(
                     shop.nome,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ),
                 StreamBuilder(
@@ -246,7 +247,8 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
                               latitude: shop.latitude,
                               longitude: shop.longitude,
                             );
-                            if (!ok && mounted) {
+                            if (!context.mounted) return;
+                            if (!ok) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content:
@@ -284,7 +286,8 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
                               latitude: shop.latitude,
                               longitude: shop.longitude,
                             );
-                            if (!ok && mounted) {
+                            if (!context.mounted) return;
+                            if (!ok) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
                                   content:
@@ -398,8 +401,32 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
                 children: _availableHours.map((hour) {
                   final selected = _selectedHour == hour;
                   return ChoiceChip(
-                    label: Text('$hour:00'),
+                    avatar: Icon(
+                      Icons.schedule_rounded,
+                      size: 17,
+                      color: selected
+                          ? colorScheme.onPrimary
+                          : colorScheme.primary,
+                    ),
+                    label: Text(
+                      '$hour:00',
+                      style: TextStyle(
+                        color: selected
+                            ? colorScheme.onPrimary
+                            : colorScheme.onSurface,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     selected: selected,
+                    backgroundColor: colorScheme.surfaceContainerLowest,
+                    selectedColor: colorScheme.primary,
+                    side: BorderSide(
+                      color: selected
+                          ? colorScheme.primary
+                          : colorScheme.outlineVariant,
+                      width: selected ? 1.5 : 1,
+                    ),
+                    showCheckmark: false,
                     onSelected: (_) {
                       setState(() {
                         _selectedHour = hour;
@@ -422,17 +449,16 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
               const Text('Nenhum serviço cadastrado.')
             else
               ...shop.services.map((service) {
-                final price = NumberFormat.currency(
-                        locale: 'pt_BR', symbol: 'R\$')
-                    .format(service.preco);
+                final price =
+                    NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$')
+                        .format(service.preco);
                 return Card(
                   child: ListTile(
                     title: Text(service.nome),
                     subtitle: Text(price),
                     trailing: ElevatedButton(
-                      onPressed: _selectedHour == null
-                          ? null
-                          : () => _book(service),
+                      onPressed:
+                          _selectedHour == null ? null : () => _book(service),
                       child: const Text('Agendar'),
                     ),
                   ),
@@ -450,9 +476,9 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
               const Text('Nenhum plano disponível.')
             else
               ...shop.monthlyPlans.map((plan) {
-                final price = NumberFormat.currency(
-                        locale: 'pt_BR', symbol: 'R\$')
-                    .format(plan.price);
+                final price =
+                    NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$')
+                        .format(plan.price);
                 return Card(
                   elevation: 3,
                   shape: RoundedRectangleBorder(
@@ -534,4 +560,3 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
     );
   }
 }
-

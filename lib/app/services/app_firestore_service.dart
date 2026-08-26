@@ -1,4 +1,4 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/barbershop.dart';
 import '../models/monthly_plan.dart';
 import '../models/service_item.dart';
@@ -45,6 +45,7 @@ class AppFirestoreService {
     String? locationLabel,
     String? imageUrl,
     String? imageThumbUrl,
+    String? logoData,
     double? monthlyPlanPrice,
     String? pixKey,
     String? pixKeyType,
@@ -62,6 +63,7 @@ class AppFirestoreService {
       'endereco': endereco,
       'imageUrl': imageUrl,
       'imageThumbUrl': imageThumbUrl,
+      if (logoData != null) 'logoData': logoData,
       'services': services.map((s) => s.toMap()).toList(),
       'availability': availability,
       'nomeLower': nomeLower,
@@ -71,9 +73,7 @@ class AppFirestoreService {
       'pixKey': pixKey,
       'pixKeyType': pixKeyType,
       'pixBankName': pixBankName,
-      'monthlyPlans': (monthlyPlans ?? [])
-          .map((plan) => plan.toMap())
-          .toList(),
+      'monthlyPlans': (monthlyPlans ?? []).map((plan) => plan.toMap()).toList(),
       if (location != null) 'location': location,
       if (locationLabel != null && locationLabel.trim().isNotEmpty)
         'locationLabel': locationLabel,
@@ -122,6 +122,7 @@ class AppFirestoreService {
     String? locationLabel,
     String? imageUrl,
     String? imageThumbUrl,
+    String? logoData,
     List<ServiceItem>? services,
     Map<String, List<String>>? availability,
     double? monthlyPlanPrice,
@@ -151,6 +152,9 @@ class AppFirestoreService {
     }
     if (imageThumbUrl != null) {
       data['imageThumbUrl'] = imageThumbUrl;
+    }
+    if (logoData != null) {
+      data['logoData'] = logoData;
     }
     if (services != null) {
       data['services'] = services.map((s) => s.toMap()).toList();

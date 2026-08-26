@@ -22,7 +22,8 @@ class MonthlyPlan {
 
   static MonthlyPlan fromMap(Map<String, dynamic> map) {
     final priceValue = map['price'];
-    final price = priceValue is int ? priceValue.toDouble() : (priceValue ?? 0.0);
+    final price =
+        priceValue is int ? priceValue.toDouble() : (priceValue ?? 0.0);
     return MonthlyPlan(
       id: map['id'] ?? '',
       name: map['name'] ?? '',

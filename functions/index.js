@@ -1,56 +1,7 @@
-﻿const functions = require('firebase-functions');
+﻿const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 
 admin.initializeApp();
-
-const R2_SECRET_NAMES = [
-  'R2_ACCOUNT_ID',
-  'R2_ACCESS_KEY_ID',
-  'R2_SECRET_ACCESS_KEY',
-  'R2_BUCKET',
-  'R2_PUBLIC_BASE_URL',
-];
-
-function getR2Config() {
-  return {
-    accountId: process.env.R2_ACCOUNT_ID,
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    bucket: process.env.R2_BUCKET,
-    publicBaseUrl: process.env.R2_PUBLIC_BASE_URL,
-  };
-}
-
-function getR2Client(r2Config) {
-  if (
-    !r2Config.accountId ||
-    !r2Config.accessKeyId ||
-    !r2Config.secretAccessKey ||
-    !r2Config.bucket
-  ) {
-    throw new functions.https.HttpsError(
-      'failed-precondition',
-      'Configuracao do R2 ausente no ambiente.'
-    );
-  }
-
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${r2Config.accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: r2Config.accessKeyId,
-      secretAccessKey: r2Config.secretAccessKey,
-    },
-  });
-}
-
-function buildPublicUrl(baseUrl, objectKey) {
-  if (!baseUrl) return null;
-  const trimmed = String(baseUrl).replace(/\/+$/, '');
-  return `${trimmed}/${objectKey}`;
-}
 
 async function sendToUser(userId, payload) {
   const userSnap = await admin.firestore().collection('users').doc(userId).get();
@@ -58,59 +9,52 @@ async function sendToUser(userId, payload) {
   const tokens = userSnap.data().fcmTokens || [];
   if (!Array.isArray(tokens) || tokens.length === 0) return;
 
-  await admin.messaging().sendEachForMulticast({
+  const response = await admin.messaging().sendEachForMulticast({
     tokens,
     notification: payload.notification,
     data: payload.data,
   });
+
+  const invalidTokens = [];
+  response.responses.forEach((result, index) => {
+    const code = result.error?.code;
+    if (
+      code === 'messaging/registration-token-not-registered' ||
+      code === 'messaging/invalid-registration-token'
+    ) {
+      invalidTokens.push(tokens[index]);
+    }
+  });
+  if (invalidTokens.length > 0) {
+    await userSnap.ref.update({
+      fcmTokens: admin.firestore.FieldValue.arrayRemove(...invalidTokens),
+    });
+  }
 }
 
-exports.getR2UploadUrl = functions
-  .runWith({ secrets: R2_SECRET_NAMES })
-  .https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'Usuario nao autenticado.');
+async function saveNotificationHistory(userId, notificationId, data) {
+  if (!userId) return;
+  const reference = admin
+    .firestore()
+    .collection('users')
+    .doc(userId)
+    .collection('notifications')
+    .doc(notificationId);
+  try {
+    await reference.create({
+      userId,
+      actorId: data.actorId,
+      appointmentId: data.appointmentId,
+      type: data.type,
+      title: data.title,
+      body: data.body,
+      isRead: false,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch (error) {
+    if (error?.code !== 6 && error?.code !== 'already-exists') throw error;
   }
-
-  const objectKey = typeof data?.objectKey === 'string' ? data.objectKey.trim() : '';
-  if (!objectKey) {
-    throw new functions.https.HttpsError('invalid-argument', 'objectKey e obrigatorio.');
-  }
-  if (objectKey.includes('..')) {
-    throw new functions.https.HttpsError('invalid-argument', 'objectKey invalido.');
-  }
-
-  const uid = context.auth.uid;
-  const allowedPrefix = `barbershops/${uid}/`;
-  if (!objectKey.startsWith(allowedPrefix)) {
-    throw new functions.https.HttpsError(
-      'permission-denied',
-      'Sem permissao para enviar arquivos fora do seu diretorio.'
-    );
-  }
-
-  const contentType =
-    typeof data?.contentType === 'string' && data.contentType.trim().length > 0
-      ? data.contentType.trim()
-      : 'application/octet-stream';
-
-  const r2Config = getR2Config();
-  const client = getR2Client(r2Config);
-  const command = new PutObjectCommand({
-    Bucket: r2Config.bucket,
-    Key: objectKey,
-    ContentType: contentType,
-  });
-
-  const uploadUrl = await getSignedUrl(client, command, { expiresIn: 60 * 5 });
-  const publicUrl = buildPublicUrl(r2Config.publicBaseUrl, objectKey);
-
-  return {
-    uploadUrl,
-    publicUrl,
-    objectKey,
-  };
-});
+}
 
 exports.cancelAppointment = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
@@ -145,7 +89,7 @@ exports.cancelAppointment = functions.https.onCall(async (data, context) => {
   if (isClient) {
     let scheduledAt = appointment.scheduledAt?.toDate?.();
     if (!scheduledAt && appointment.date && appointment.hour) {
-      scheduledAt = new Date(`${appointment.date}T${appointment.hour}:00:00`);
+      scheduledAt = new Date(`${appointment.date}T${appointment.hour}:00:00-03:00`);
     }
     if (!scheduledAt) {
       throw new functions.https.HttpsError(
@@ -153,11 +97,11 @@ exports.cancelAppointment = functions.https.onCall(async (data, context) => {
         'Agendamento sem data valida para cancelamento.'
       );
     }
-    const cancelDeadline = new Date(scheduledAt.getTime() - 12 * 60 * 60 * 1000);
+    const cancelDeadline = new Date(scheduledAt.getTime() - 6 * 60 * 60 * 1000);
     if (new Date() > cancelDeadline) {
       throw new functions.https.HttpsError(
         'failed-precondition',
-        'Prazo de cancelamento expirado (12h antes do horario).'
+        'Prazo de cancelamento expirado (6h antes do horario).'
       );
     }
   }
@@ -176,6 +120,7 @@ exports.cancelAppointment = functions.https.onCall(async (data, context) => {
     tx.update(appointmentRef, {
       status: 'cancelled',
       cancelledBy: isBarber ? 'barber' : 'client',
+      cancelledByUserId: userId,
       cancelReason,
       cancelledAt: admin.firestore.FieldValue.serverTimestamp(),
     });
@@ -190,18 +135,72 @@ exports.onAppointmentCreated = functions.firestore
     const appointment = snap.data();
     if (!appointment) return;
 
+    const appointmentId = snap.id;
     const title = 'Novo agendamento';
     const bodyClient = `Seu horario foi confirmado para ${appointment.date} as ${appointment.hour}:00.`;
-    const bodyBarber = `Novo agendamento em ${appointment.date} as ${appointment.hour}:00.`;
+    const bodyBarber = `${appointment.clientName || 'Cliente'} agendou ${appointment.serviceName || 'um atendimento'} para ${appointment.date} as ${appointment.hour}:00.`;
 
-    await sendToUser(appointment.clientId, {
-      notification: { title, body: bodyClient },
-      data: { type: 'appointment_created', appointmentId: snap.id },
-    });
-    await sendToUser(appointment.barberId, {
-      notification: { title, body: bodyBarber },
-      data: { type: 'appointment_created', appointmentId: snap.id },
-    });
+    const tasks = [
+      saveNotificationHistory(
+        appointment.clientId,
+        `${appointmentId}_created_client`,
+        {
+          actorId: appointment.clientId,
+          appointmentId,
+          type: 'appointment_created',
+          title: 'Agendamento confirmado',
+          body: bodyClient,
+        }
+      ),
+      saveNotificationHistory(
+        appointment.barberId,
+        `${appointmentId}_created_barber`,
+        {
+          actorId: appointment.clientId,
+          appointmentId,
+          type: 'appointment_created',
+          title,
+          body: bodyBarber,
+        }
+      ),
+      sendToUser(appointment.clientId, {
+        notification: { title, body: bodyClient },
+        data: { type: 'appointment_created', appointmentId },
+      }),
+      sendToUser(appointment.barberId, {
+        notification: { title, body: bodyBarber },
+        data: { type: 'appointment_created', appointmentId },
+      }),
+    ];
+
+    if (appointment.paid === true) {
+      tasks.push(
+        saveNotificationHistory(
+          appointment.clientId,
+          `${appointmentId}_payment_client`,
+          {
+            actorId: appointment.clientId,
+            appointmentId,
+            type: 'payment_approved',
+            title: 'Pagamento aprovado',
+            body: `Pagamento de ${appointment.serviceName || 'seu atendimento'} confirmado.`,
+          }
+        ),
+        saveNotificationHistory(
+          appointment.barberId,
+          `${appointmentId}_payment_barber`,
+          {
+            actorId: appointment.clientId,
+            appointmentId,
+            type: 'payment_received',
+            title: 'Pagamento recebido',
+            body: `Pagamento de ${appointment.clientName || 'Cliente'} confirmado.`,
+          }
+        )
+      );
+    }
+
+    await Promise.all(tasks);
   });
 
 exports.onAppointmentUpdated = functions.firestore
@@ -211,20 +210,125 @@ exports.onAppointmentUpdated = functions.firestore
     const after = change.after.data();
     if (!before || !after) return;
 
-    if (before.status === after.status) return;
-    if (after.status !== 'cancelled') return;
+    const appointmentId = change.after.id;
+    const tasks = [];
 
-    const title = 'Agendamento cancelado';
-    const reason = after.cancelReason || '';
-    const bodyClient = `Agendamento cancelado. ${reason}`.trim();
-    const bodyBarber = `Agendamento cancelado. ${reason}`.trim();
+    if (before.status !== after.status && after.status === 'cancelled') {
+      const title = 'Agendamento cancelado';
+      const reason = after.cancelReason || '';
+      const bodyClient = `Agendamento cancelado. ${reason}`.trim();
+      const bodyBarber = `${after.clientName || 'Cliente'} teve o agendamento cancelado. ${reason}`.trim();
+      const actorId = after.cancelledBy === 'barber'
+        ? after.barberId
+        : after.clientId;
+      tasks.push(
+        saveNotificationHistory(after.clientId, `${appointmentId}_cancelled_client`, {
+          actorId,
+          appointmentId,
+          type: 'appointment_cancelled',
+          title,
+          body: bodyClient,
+        }),
+        saveNotificationHistory(after.barberId, `${appointmentId}_cancelled_barber`, {
+          actorId,
+          appointmentId,
+          type: 'appointment_cancelled',
+          title,
+          body: bodyBarber,
+        }),
+        sendToUser(after.clientId, {
+          notification: { title, body: bodyClient },
+          data: { type: 'appointment_cancelled', appointmentId },
+        }),
+        sendToUser(after.barberId, {
+          notification: { title, body: bodyBarber },
+          data: { type: 'appointment_cancelled', appointmentId },
+        })
+      );
+    }
 
-    await sendToUser(after.clientId, {
-      notification: { title, body: bodyClient },
-      data: { type: 'appointment_cancelled', appointmentId: change.after.id },
-    });
-    await sendToUser(after.barberId, {
-      notification: { title, body: bodyBarber },
-      data: { type: 'appointment_cancelled', appointmentId: change.after.id },
+    if (before.status !== after.status && after.status === 'completed') {
+      tasks.push(
+        saveNotificationHistory(after.clientId, `${appointmentId}_completed_client`, {
+          actorId: after.barberId,
+          appointmentId,
+          type: 'appointment_completed',
+          title: 'Atendimento concluido',
+          body: `Seu atendimento de ${after.serviceName || 'barbearia'} foi concluido.`,
+        }),
+        saveNotificationHistory(after.barberId, `${appointmentId}_completed_barber`, {
+          actorId: after.barberId,
+          appointmentId,
+          type: 'appointment_completed',
+          title: 'Atendimento concluido',
+          body: `Atendimento de ${after.clientName || 'Cliente'} concluido.`,
+        })
+      );
+    }
+
+    if (before.paid !== true && after.paid === true) {
+      tasks.push(
+        saveNotificationHistory(after.clientId, `${appointmentId}_payment_client`, {
+          actorId: after.clientId,
+          appointmentId,
+          type: 'payment_approved',
+          title: 'Pagamento aprovado',
+          body: `Pagamento de ${after.serviceName || 'seu atendimento'} confirmado.`,
+        }),
+        saveNotificationHistory(after.barberId, `${appointmentId}_payment_barber`, {
+          actorId: after.clientId,
+          appointmentId,
+          type: 'payment_received',
+          title: 'Pagamento recebido',
+          body: `Pagamento de ${after.clientName || 'Cliente'} confirmado.`,
+        })
+      );
+    }
+
+    await Promise.all(tasks);
+  });
+
+exports.onChatMessageCreated = functions.firestore
+  .document('conversations/{conversationId}/messages/{messageId}')
+  .onCreate(async (snapshot, context) => {
+    const message = snapshot.data();
+    if (!message?.senderId || !message?.text) return;
+
+    const conversationSnap = await admin
+      .firestore()
+      .collection('conversations')
+      .doc(context.params.conversationId)
+      .get();
+    if (!conversationSnap.exists) return;
+
+    const conversation = conversationSnap.data();
+    const senderIsClient = message.senderId === conversation.clientId;
+    const senderIsBarber = message.senderId === conversation.barberId;
+    if (!senderIsClient && !senderIsBarber) return;
+
+    const recipientId = senderIsClient
+      ? conversation.barberId
+      : conversation.clientId;
+    const senderName = senderIsClient
+      ? conversation.clientName || 'Cliente'
+      : conversation.barbershopName || 'Barbearia';
+    await sendToUser(recipientId, {
+      notification: {
+        title: `Nova mensagem de ${String(senderName).slice(0, 80)}`,
+        body: String(message.text).slice(0, 200),
+      },
+      data: {
+        type: 'message_received',
+        conversationId: context.params.conversationId,
+      },
     });
   });
+
+const mercadoPago = require('./mercado_pago');
+
+exports.createMercadoPagoConnectUrl = mercadoPago.createMercadoPagoConnectUrl;
+exports.getMercadoPagoConnectionStatus = mercadoPago.getMercadoPagoConnectionStatus;
+exports.mercadoPagoOAuthCallback = mercadoPago.mercadoPagoOAuthCallback;
+exports.createMercadoPagoCheckout = mercadoPago.createMercadoPagoCheckout;
+exports.getPaymentIntentStatus = mercadoPago.getPaymentIntentStatus;
+exports.mercadoPagoWebhook = mercadoPago.mercadoPagoWebhook;

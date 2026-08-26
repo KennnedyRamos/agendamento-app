@@ -1,4 +1,4 @@
-﻿import 'monthly_plan.dart';
+import 'monthly_plan.dart';
 import 'service_item.dart';
 
 class Barbershop {
@@ -9,6 +9,7 @@ class Barbershop {
   final Map<String, String> endereco;
   final String? imageUrl;
   final String? imageThumbUrl;
+  final String? logoData;
   final List<ServiceItem> services;
   final Map<String, List<String>> availability;
   final String nomeLower;
@@ -22,6 +23,8 @@ class Barbershop {
   final double? latitude;
   final double? longitude;
   final String? locationLabel;
+  final bool paymentConnected;
+  final String? paymentProvider;
 
   Barbershop({
     required this.id,
@@ -36,6 +39,7 @@ class Barbershop {
     required this.bairroLower,
     this.imageUrl,
     this.imageThumbUrl,
+    this.logoData,
     this.monthlyPlanPrice,
     this.pixKey,
     this.pixKeyType,
@@ -44,6 +48,8 @@ class Barbershop {
     this.latitude,
     this.longitude,
     this.locationLabel,
+    this.paymentConnected = false,
+    this.paymentProvider,
   });
 
   Map<String, dynamic> toMap() {
@@ -53,6 +59,7 @@ class Barbershop {
       'endereco': endereco,
       'imageUrl': imageUrl,
       'imageThumbUrl': imageThumbUrl,
+      'logoData': logoData,
       'services': services.map((s) => s.toMap()).toList(),
       'availability': availability,
       'nomeLower': nomeLower,
@@ -70,6 +77,8 @@ class Barbershop {
         },
       if (locationLabel != null && locationLabel!.trim().isNotEmpty)
         'locationLabel': locationLabel,
+      'paymentConnected': paymentConnected,
+      'paymentProvider': paymentProvider,
     };
   }
 
@@ -93,7 +102,9 @@ class Barbershop {
         ? (map['monthlyPlanPrice'] as num).toDouble()
         : null;
 
-    if (monthlyPlans.isEmpty && legacyPlanPrice != null && legacyPlanPrice > 0) {
+    if (monthlyPlans.isEmpty &&
+        legacyPlanPrice != null &&
+        legacyPlanPrice > 0) {
       final fallbackServices = servicesRaw
           .whereType<Map<String, dynamic>>()
           .map(ServiceItem.fromMap)
@@ -125,6 +136,7 @@ class Barbershop {
           .map((key, value) => MapEntry(key, value?.toString() ?? '')),
       imageUrl: map['imageUrl'],
       imageThumbUrl: map['imageThumbUrl'],
+      logoData: map['logoData']?.toString(),
       services: servicesRaw
           .map((s) => ServiceItem.fromMap(s as Map<String, dynamic>))
           .toList(),
@@ -140,6 +152,8 @@ class Barbershop {
       latitude: latitude,
       longitude: longitude,
       locationLabel: locationLabel,
+      paymentConnected: map['paymentConnected'] == true,
+      paymentProvider: map['paymentProvider']?.toString(),
     );
   }
 }

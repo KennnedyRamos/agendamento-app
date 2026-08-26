@@ -1,8 +1,8 @@
+import 'package:agendamento_app/app/screens/barber_home_page.dart';
+import 'package:agendamento_app/app/screens/client_home_page.dart';
 import 'package:agendamento_app/app/screens/login_page_cliente.dart';
 import 'package:agendamento_app/app/screens/register_page.dart';
 import 'package:agendamento_app/app/screens/role_gate_page.dart';
-import 'package:agendamento_app/app/screens/client_home_page.dart';
-import 'package:agendamento_app/app/screens/barber_home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -13,14 +13,13 @@ class AppWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BarberPro',
-      theme: _buildLightTheme(),
-      darkTheme: _buildDarkTheme(),
-      themeMode: ThemeMode.system,
+      title: 'BarberKR',
+      debugShowCheckedModeBanner: false,
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
+      themeMode: ThemeMode.light,
       locale: const Locale('pt', 'BR'),
-      supportedLocales: const [
-        Locale('pt', 'BR'),
-      ],
+      supportedLocales: const [Locale('pt', 'BR')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
@@ -38,196 +37,198 @@ class AppWidget extends StatelessWidget {
   }
 }
 
-ThemeData _buildLightTheme() {
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFF1F6F78),
-    brightness: Brightness.light,
-  ).copyWith(
-    primary: const Color(0xFF1F6F78),
-    onPrimary: Colors.white,
-    secondary: const Color(0xFF0F3D44),
-    onSecondary: Colors.white,
-    tertiary: const Color(0xFF4FB8C1),
-    onTertiary: const Color(0xFF001214),
-    error: const Color(0xFFB3261E),
-    onError: Colors.white,
-    surface: Colors.white,
-    onSurface: const Color(0xFF101418),
-    outline: const Color(0xFFD5D8DC),
-    shadow: const Color(0x33000000),
+ThemeData _buildTheme(Brightness brightness) {
+  final isDark = brightness == Brightness.dark;
+  final colors = ColorScheme.fromSeed(
+    seedColor: const Color(0xFF0F766E),
+    brightness: brightness,
+    primary: isDark ? const Color(0xFF71D8C8) : const Color(0xFF0F766E),
+    secondary: isDark ? const Color(0xFFFFB098) : const Color(0xFFE76F51),
+    tertiary: isDark ? const Color(0xFFFFD166) : const Color(0xFFE9A922),
+    surface: isDark ? const Color(0xFF131A18) : const Color(0xFFFFF9F2),
+  );
+  final baseTextTheme =
+      isDark ? ThemeData.dark().textTheme : ThemeData.light().textTheme;
+  final textTheme = GoogleFonts.manropeTextTheme(baseTextTheme).copyWith(
+    headlineLarge: GoogleFonts.manrope(
+      fontSize: 34,
+      height: 1.08,
+      fontWeight: FontWeight.w800,
+      color: colors.onSurface,
+    ),
+    headlineMedium: GoogleFonts.manrope(
+      fontSize: 28,
+      height: 1.12,
+      fontWeight: FontWeight.w800,
+      color: colors.onSurface,
+    ),
+    headlineSmall: GoogleFonts.manrope(
+      fontSize: 23,
+      height: 1.18,
+      fontWeight: FontWeight.w800,
+      color: colors.onSurface,
+    ),
+    titleLarge: GoogleFonts.manrope(
+      fontSize: 20,
+      fontWeight: FontWeight.w700,
+      color: colors.onSurface,
+    ),
+    titleMedium: GoogleFonts.manrope(
+      fontSize: 16,
+      fontWeight: FontWeight.w700,
+      color: colors.onSurface,
+    ),
+    titleSmall: GoogleFonts.manrope(
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+      color: colors.onSurface,
+    ),
+    bodyMedium: GoogleFonts.manrope(
+      fontSize: 14,
+      height: 1.45,
+      color: colors.onSurfaceVariant,
+    ),
+    bodySmall: GoogleFonts.manrope(
+      fontSize: 12.5,
+      height: 1.4,
+      color: colors.onSurfaceVariant,
+    ),
+    labelLarge: GoogleFonts.manrope(
+      fontSize: 14,
+      fontWeight: FontWeight.w700,
+    ),
   );
 
-  final base = ThemeData(
+  final inputBorder = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(16),
+    borderSide: BorderSide(color: colors.outlineVariant),
+  );
+
+  return ThemeData(
     useMaterial3: true,
-    colorScheme: colorScheme,
-    scaffoldBackgroundColor: colorScheme.surface,
-    textTheme: GoogleFonts.poppinsTextTheme(),
-  );
-
-  return base.copyWith(
+    brightness: brightness,
+    colorScheme: colors,
+    scaffoldBackgroundColor: colors.surface,
+    textTheme: textTheme,
     appBarTheme: AppBarTheme(
-      backgroundColor: colorScheme.surface,
-      foregroundColor: colorScheme.onSurface,
+      backgroundColor: colors.surface,
+      foregroundColor: colors.onSurface,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
-      centerTitle: true,
-      titleTextStyle: GoogleFonts.poppins(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: colorScheme.onSurface,
-      ),
+      scrolledUnderElevation: 0,
+      centerTitle: false,
+      titleTextStyle: textTheme.titleLarge,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: colorScheme.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colorScheme.outline),
+      fillColor:
+          isDark ? colors.surfaceContainerHigh : colors.surfaceContainerLowest,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      border: inputBorder,
+      enabledBorder: inputBorder,
+      focusedBorder: inputBorder.copyWith(
+        borderSide: BorderSide(color: colors.primary, width: 1.8),
       ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colorScheme.outline),
+      errorBorder: inputBorder.copyWith(
+        borderSide: BorderSide(color: colors.error),
       ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colorScheme.primary, width: 1.6),
+      prefixIconColor: colors.onSurfaceVariant,
+      suffixIconColor: colors.onSurfaceVariant,
+      floatingLabelStyle: TextStyle(color: colors.primary),
+    ),
+    cardTheme: CardThemeData(
+      color: colors.surfaceContainerLowest,
+      surfaceTintColor: Colors.transparent,
+      elevation: isDark ? 0 : 2,
+      shadowColor: colors.shadow.withValues(alpha: 0.08),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.5)),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size(48, 54),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: textTheme.labelLarge,
       ),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        minimumSize: const Size(48, 52),
+        elevation: 0,
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        textStyle: textTheme.labelLarge,
       ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(48, 52),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        side: BorderSide(color: colors.outlineVariant),
+        textStyle: textTheme.labelLarge,
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: textTheme.labelLarge,
+      ),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      height: 68,
+      backgroundColor: colors.surfaceContainerLowest,
+      indicatorColor: colors.primaryContainer,
+      elevation: 3,
+      shadowColor: colors.shadow.withValues(alpha: 0.12),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return textTheme.labelSmall?.copyWith(
+          color: selected ? colors.primary : colors.onSurfaceVariant,
+          fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(
+          color: selected ? colors.primary : colors.onSurfaceVariant,
+          size: 24,
+        );
+      }),
     ),
     chipTheme: ChipThemeData(
-      backgroundColor: colorScheme.surface,
-      selectedColor: colorScheme.primary.withValues(alpha: 0.18),
-      side: BorderSide(color: colorScheme.outline),
-      labelStyle: TextStyle(
-        fontWeight: FontWeight.w500,
-        color: colorScheme.onSurface,
-      ),
-      checkmarkColor: colorScheme.primary,
-    ),
-    cardTheme: CardThemeData(
-      color: colorScheme.surface,
-      surfaceTintColor: colorScheme.surface,
-      elevation: 2,
-      shadowColor: colorScheme.shadow,
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      backgroundColor: colors.surfaceContainerLowest,
+      selectedColor: colors.primaryContainer,
+      side: BorderSide(color: colors.outlineVariant),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      labelStyle: textTheme.labelLarge?.copyWith(color: colors.onSurface),
+      secondaryLabelStyle:
+          textTheme.labelLarge?.copyWith(color: colors.onPrimaryContainer),
+      checkmarkColor: colors.primary,
     ),
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: colorScheme.surface,
-      selectedItemColor: colorScheme.primary,
-      unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.6),
-      showUnselectedLabels: true,
-      type: BottomNavigationBarType.fixed,
+    dividerTheme: DividerThemeData(
+      color: colors.outlineVariant,
+      thickness: 1,
+      space: 24,
     ),
-    dividerColor: colorScheme.outline,
+    dialogTheme: DialogThemeData(
+      backgroundColor: colors.surfaceContainerLowest,
+      surfaceTintColor: Colors.transparent,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      titleTextStyle: textTheme.titleLarge,
+    ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: colorScheme.onSurface,
-      contentTextStyle: TextStyle(color: colorScheme.surface),
-    ),
-  );
-}
-
-ThemeData _buildDarkTheme() {
-  final colorScheme = ColorScheme.fromSeed(
-    seedColor: const Color(0xFF58C7D2),
-    brightness: Brightness.dark,
-  ).copyWith(
-    primary: const Color(0xFF58C7D2),
-    onPrimary: const Color(0xFF001214),
-    secondary: const Color(0xFF2F8A93),
-    onSecondary: const Color(0xFF001214),
-    tertiary: const Color(0xFF7FE0EA),
-    onTertiary: const Color(0xFF001214),
-    error: const Color(0xFFFFB4AB),
-    onError: const Color(0xFF690005),
-    surface: const Color(0xFF111A1E),
-    onSurface: const Color(0xFFE6EEF0),
-    outline: const Color(0xFF2B3A40),
-    shadow: const Color(0x66000000),
-  );
-
-  final base = ThemeData(
-    useMaterial3: true,
-    colorScheme: colorScheme,
-    scaffoldBackgroundColor: colorScheme.surface,
-    textTheme: GoogleFonts.poppinsTextTheme(ThemeData.dark().textTheme),
-  );
-
-  return base.copyWith(
-    appBarTheme: AppBarTheme(
-      backgroundColor: colorScheme.surface,
-      foregroundColor: colorScheme.onSurface,
-      elevation: 0,
-      centerTitle: true,
-      titleTextStyle: GoogleFonts.poppins(
-        fontSize: 20,
-        fontWeight: FontWeight.w600,
-        color: colorScheme.onSurface,
-      ),
-    ),
-    inputDecorationTheme: InputDecorationTheme(
-      filled: true,
-      fillColor: colorScheme.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colorScheme.outline),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colorScheme.outline),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: colorScheme.primary, width: 1.6),
-      ),
-    ),
-    elevatedButtonTheme: ElevatedButtonThemeData(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-      ),
-    ),
-    chipTheme: ChipThemeData(
-      backgroundColor: colorScheme.surface,
-      selectedColor: colorScheme.primary.withValues(alpha: 0.22),
-      side: BorderSide(color: colorScheme.outline),
-      labelStyle: TextStyle(
-        fontWeight: FontWeight.w500,
-        color: colorScheme.onSurface,
-      ),
-      checkmarkColor: colorScheme.primary,
-    ),
-    cardTheme: CardThemeData(
-      color: colorScheme.surface,
-      surfaceTintColor: colorScheme.surface,
-      elevation: 2,
-      shadowColor: colorScheme.shadow,
-      margin: const EdgeInsets.symmetric(vertical: 6),
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: colors.inverseSurface,
+      contentTextStyle: TextStyle(color: colors.onInverseSurface),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    ),
-    bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: colorScheme.surface,
-      selectedItemColor: colorScheme.primary,
-      unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.6),
-      showUnselectedLabels: true,
-      type: BottomNavigationBarType.fixed,
-    ),
-    dividerColor: colorScheme.outline,
-    snackBarTheme: SnackBarThemeData(
-      backgroundColor: colorScheme.onSurface,
-      contentTextStyle: TextStyle(color: colorScheme.surface),
     ),
   );
 }

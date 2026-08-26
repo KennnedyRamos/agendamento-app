@@ -1,4 +1,4 @@
-﻿class UserProfile {
+class UserProfile {
   final String uid;
   final String role; // client | barber
   final String nome;

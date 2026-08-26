@@ -1,10 +1,13 @@
-﻿import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/models/barbershop.dart';
+import 'package:agendamento_app/app/models/chat_conversation.dart';
 import 'package:agendamento_app/app/screens/booking_page.dart';
+import 'package:agendamento_app/app/screens/chat_page.dart';
 import 'package:agendamento_app/app/screens/plan_details_page.dart';
 import 'package:agendamento_app/app/screens/plan_selection_page.dart';
 import 'package:agendamento_app/app/services/app_firestore_service.dart';
 import 'package:agendamento_app/app/services/review_service.dart';
 import 'package:agendamento_app/app/utils/map_utils.dart';
+import 'package:agendamento_app/app/widgets/barbershop_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -106,6 +109,48 @@ class BarbershopProfilePage extends StatelessWidget {
       await showReviewDialog(initialRating: existingRating);
     }
 
+    Future<void> openChat() async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Usuário não autenticado.')),
+        );
+        return;
+      }
+
+      try {
+        final profile = await AppFirestoreService().getUserProfile(user.uid);
+        if (!context.mounted) return;
+        final profileName = [profile?.nome, profile?.sobrenome]
+            .whereType<String>()
+            .map((value) => value.trim())
+            .where((value) => value.isNotEmpty)
+            .join(' ');
+        final fallbackName = (user.displayName ?? '').trim().isNotEmpty
+            ? user.displayName!.trim()
+            : (user.email?.split('@').first ?? 'Cliente');
+        final conversation = ChatConversation.between(
+          barberId: barbershop.ownerId,
+          clientId: user.uid,
+          barbershopId: barbershop.id,
+          barbershopName: barbershop.nome,
+          clientName: profileName.isEmpty ? fallbackName : profileName,
+        );
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChatPage(conversation: conversation),
+          ),
+        );
+      } catch (error) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Não foi possível abrir o chat: $error')),
+        );
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Perfil da barbearia'),
@@ -124,16 +169,15 @@ class BarbershopProfilePage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            if (barbershop.imageUrl != null &&
-                barbershop.imageUrl!.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  barbershop.imageUrl!,
-                  height: 180,
-                  fit: BoxFit.cover,
-                ),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: BarbershopImage(
+                logoData: barbershop.logoData,
+                imageUrl: barbershop.imageUrl,
+                height: 180,
+                width: double.infinity,
               ),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -146,7 +190,8 @@ class BarbershopProfilePage extends StatelessWidget {
                   ),
                 ),
                 StreamBuilder(
-                  stream: reviewService.watchReviewsForBarber(barbershop.ownerId),
+                  stream:
+                      reviewService.watchReviewsForBarber(barbershop.ownerId),
                   builder: (context, snapshot) {
                     final docs = snapshot.data?.docs ?? [];
                     final ratingByClient = <String, double>{};
@@ -201,8 +246,8 @@ class BarbershopProfilePage extends StatelessWidget {
               Text('Telefone: ${barbershop.pixKey}')
             else
               FutureBuilder(
-                future: AppFirestoreService()
-                    .getUserProfile(barbershop.ownerId),
+                future:
+                    AppFirestoreService().getUserProfile(barbershop.ownerId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Text('Telefone: carregando...');
@@ -215,6 +260,15 @@ class BarbershopProfilePage extends StatelessWidget {
                   return Text('Telefone: $phone');
                 },
               ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                onPressed: openChat,
+                icon: const Icon(Icons.chat_bubble_outline_rounded),
+                label: const Text('Enviar mensagem'),
+              ),
+            ),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -354,10 +408,10 @@ class BarbershopProfilePage extends StatelessWidget {
                       (rating is int) ? rating.toDouble() : 0.0;
                 }
                 if (ratingByClient.isEmpty) {
-                  return Column(
+                  return const Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Sem avaliações ainda.'),
+                      Text('Sem avaliações ainda.'),
                     ],
                   );
                 }
@@ -475,8 +529,8 @@ class BarbershopProfilePage extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) =>
-                                PlanDetailsPage(barbershop: barbershop, plan: plan),
+                            builder: (context) => PlanDetailsPage(
+                                barbershop: barbershop, plan: plan),
                           ),
                         );
                       },
@@ -504,8 +558,7 @@ class BarbershopProfilePage extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        BookingPage(barbershop: barbershop),
+                    builder: (context) => BookingPage(barbershop: barbershop),
                   ),
                 );
               },
@@ -545,10 +598,3 @@ class _StarsRow extends StatelessWidget {
     );
   }
 }
-
-
-
-
-
-
-
