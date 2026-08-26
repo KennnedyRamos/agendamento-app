@@ -21,6 +21,7 @@ try {
         dart format --output=none --set-exit-if-changed lib test
         flutter analyze
         flutter test
+        npm test --prefix functions
         node --check functions/index.js
         node --check functions/mercado_pago.js
     }

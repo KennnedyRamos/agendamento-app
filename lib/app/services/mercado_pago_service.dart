@@ -3,10 +3,18 @@ import 'package:cloud_functions/cloud_functions.dart';
 class MercadoPagoConnectionStatus {
   final bool connected;
   final DateTime? connectedAt;
+  final double marketplaceFeePercent;
+  final double appliedFeePercent;
+  final bool isFeeTrialActive;
+  final DateTime? feeTrialEndsAt;
 
   const MercadoPagoConnectionStatus({
     required this.connected,
     this.connectedAt,
+    required this.marketplaceFeePercent,
+    required this.appliedFeePercent,
+    required this.isFeeTrialActive,
+    this.feeTrialEndsAt,
   });
 }
 
@@ -61,9 +69,18 @@ class MercadoPagoService {
     final connectedAt = DateTime.tryParse(
       result.data['connectedAt']?.toString() ?? '',
     );
+    final feeTrialEndsAt = DateTime.tryParse(
+      result.data['feeTrialEndsAt']?.toString() ?? '',
+    );
     return MercadoPagoConnectionStatus(
       connected: result.data['connected'] == true,
       connectedAt: connectedAt,
+      marketplaceFeePercent:
+          (result.data['marketplaceFeePercent'] as num?)?.toDouble() ?? 3,
+      appliedFeePercent:
+          (result.data['appliedFeePercent'] as num?)?.toDouble() ?? 3,
+      isFeeTrialActive: result.data['isFeeTrialActive'] == true,
+      feeTrialEndsAt: feeTrialEndsAt,
     );
   }
 

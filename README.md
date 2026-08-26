@@ -179,11 +179,13 @@ node --check functions/index.js
 node --check functions/mercado_pago.js
 ```
 
-Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo e contador de notificações.
+Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo, contador de notificações e a política promocional de comissão do marketplace.
 
 ## 💳 Mercado Pago
 
 O agendamento com **Dinheiro — pagar no local** funciona independentemente da conexão de pagamentos. Pix e cartão usam uma arquitetura marketplace: cada barbearia autoriza a própria conta, e o backend cria o checkout com o preço obtido do cadastro no Firestore.
+
+No lançamento, cada barbearia recebe 30 dias sem comissão do BarberKR. Depois do período promocional, o backend aplica automaticamente 3% apenas aos pagamentos online aprovados; pagamentos no local não geram comissão para a plataforma.
 
 As Cloud Functions exigem um projeto Firebase no plano **Blaze** para publicação. Enquanto o backend não estiver publicado, o aplicativo mantém automaticamente a alternativa de pagamento no local. Consulte o guia completo em [docs/mercado_pago_setup.md](docs/mercado_pago_setup.md).
 

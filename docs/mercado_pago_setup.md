@@ -66,12 +66,15 @@ Valores recomendados para começar:
 ```text
 MP_REDIRECT_URI=https://us-central1-barber-app-e2a38.cloudfunctions.net/mercadoPagoOAuthCallback
 MP_WEBHOOK_URL=https://us-central1-barber-app-e2a38.cloudfunctions.net/mercadoPagoWebhook
-MP_MARKETPLACE_FEE_PERCENT=0
+MP_MARKETPLACE_FEE_PERCENT=3
 MP_USE_SANDBOX=true
 ```
 
-O percentual representa a comissão da plataforma. Exemplo: `10` cobra 10% do
-valor da venda. A taxa do Mercado Pago é descontada separadamente do vendedor.
+O BarberKR concede 30 dias com comissão de plataforma de 0%, contados da
+primeira conexão da barbearia com o Mercado Pago. Depois desse período, o valor
+configurado em `MP_MARKETPLACE_FEE_PERCENT` é aplicado automaticamente; `3`
+representa 3% do valor da venda. Reconectar a conta não reinicia a promoção. A
+taxa do Mercado Pago é descontada separadamente do vendedor.
 
 ## 3. Implantar
 

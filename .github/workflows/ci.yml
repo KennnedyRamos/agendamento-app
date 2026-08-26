@@ -43,5 +43,6 @@ jobs:
           cache-dependency-path: functions/package-lock.json
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high
+      - run: npm test
       - run: node --check index.js
       - run: node --check mercado_pago.js

@@ -1,6 +1,10 @@
 const crypto = require('crypto');
 const functions = require('firebase-functions/v1');
 const admin = require('firebase-admin');
+const {
+  DEFAULT_MARKETPLACE_FEE_PERCENT,
+  resolvePaymentFeePolicy,
+} = require('./payment_fee_policy');
 
 const MP_SECRET_NAMES = [
   'MP_CLIENT_ID',
@@ -149,7 +153,7 @@ async function refreshSellerToken(accountRef, accountData) {
   return refreshed.access_token;
 }
 
-async function sellerAccessToken(sellerId) {
+async function sellerPaymentAccount(sellerId) {
   const accountRef = db().collection('payment_accounts').doc(sellerId);
   const accountSnap = await accountRef.get();
   if (!accountSnap.exists) {
@@ -160,10 +164,26 @@ async function sellerAccessToken(sellerId) {
   }
   const accountData = accountSnap.data();
   const expiresAt = accountData.expiresAt?.toMillis?.() || 0;
+  let accessToken;
   if (expiresAt <= Date.now() + 5 * 60 * 1000) {
-    return refreshSellerToken(accountRef, accountData);
+    accessToken = await refreshSellerToken(accountRef, accountData);
+  } else {
+    accessToken = decrypt(accountData.accessTokenEncrypted);
   }
-  return decrypt(accountData.accessTokenEncrypted);
+  return { accessToken, accountData };
+}
+
+async function sellerAccessToken(sellerId) {
+  const account = await sellerPaymentAccount(sellerId);
+  return account.accessToken;
+}
+
+function sellerFeePolicy(accountData) {
+  return resolvePaymentFeePolicy({
+    accountData,
+    configuredPercent:
+      process.env.MP_MARKETPLACE_FEE_PERCENT || DEFAULT_MARKETPLACE_FEE_PERCENT,
+  });
 }
 
 async function assertBarbershopOwner(uid) {
@@ -219,8 +239,9 @@ exports.createMercadoPagoConnectUrl = functions
     }
   });
 
-exports.getMercadoPagoConnectionStatus = functions.https.onCall(
-  async (_, context) => {
+exports.getMercadoPagoConnectionStatus = functions
+  .runWith({ secrets: ['MP_MARKETPLACE_FEE_PERCENT'] })
+  .https.onCall(async (_, context) => {
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'Usuario nao autenticado.');
     }
@@ -229,13 +250,20 @@ exports.getMercadoPagoConnectionStatus = functions.https.onCall(
       .collection('payment_accounts')
       .doc(context.auth.uid)
       .get();
+    const accountData = accountSnap.data() || {};
+    const feePolicy = sellerFeePolicy(accountData);
     return {
       connected: accountSnap.exists && shopData.paymentConnected === true,
       provider: accountSnap.exists ? 'mercado_pago' : null,
-      connectedAt: accountSnap.data()?.connectedAt?.toDate?.()?.toISOString() || null,
+      connectedAt: accountData.connectedAt?.toDate?.()?.toISOString() || null,
+      marketplaceFeePercent: feePolicy.configuredPercent,
+      appliedFeePercent: feePolicy.appliedPercent,
+      isFeeTrialActive: feePolicy.isTrialActive,
+      feeTrialEndsAt: feePolicy.trialEndsAtMillis
+        ? new Date(feePolicy.trialEndsAtMillis).toISOString()
+        : null,
     };
-  }
-);
+  });
 
 exports.mercadoPagoOAuthCallback = functions
   .runWith({ secrets: MP_SECRET_NAMES })
@@ -266,17 +294,30 @@ exports.mercadoPagoOAuthCallback = functions
       });
       const expiresAt = Date.now() + Number(token.expires_in || 0) * 1000;
       const sellerId = stateData.sellerId;
+      const accountRef = db().collection('payment_accounts').doc(sellerId);
+      const existingAccountSnap = await accountRef.get();
+      const existingAccount = existingAccountSnap.data() || {};
+      const initialConnectionAt =
+        existingAccount.feeTrialStartedAt ||
+        existingAccount.connectedAt ||
+        admin.firestore.FieldValue.serverTimestamp();
       const batch = db().batch();
-      batch.set(db().collection('payment_accounts').doc(sellerId), {
-        provider: 'mercado_pago',
-        sellerId,
-        mercadoPagoUserId: String(token.user_id),
-        accessTokenEncrypted: encrypt(token.access_token),
-        refreshTokenEncrypted: encrypt(token.refresh_token),
-        expiresAt: admin.firestore.Timestamp.fromMillis(expiresAt),
-        connectedAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      batch.set(
+        accountRef,
+        {
+          provider: 'mercado_pago',
+          sellerId,
+          mercadoPagoUserId: String(token.user_id),
+          accessTokenEncrypted: encrypt(token.access_token),
+          refreshTokenEncrypted: encrypt(token.refresh_token),
+          expiresAt: admin.firestore.Timestamp.fromMillis(expiresAt),
+          connectedAt: existingAccount.connectedAt || initialConnectionAt,
+          feeTrialStartedAt: initialConnectionAt,
+          lastConnectedAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
       batch.update(db().collection('barbershops').doc(sellerId), {
         paymentConnected: true,
         paymentProvider: 'mercado_pago',
@@ -396,11 +437,10 @@ exports.createMercadoPagoCheckout = functions
     });
 
     try {
-      const accessToken = await sellerAccessToken(sellerId);
-      const feePercent = Math.max(
-        0,
-        Math.min(100, Number(process.env.MP_MARKETPLACE_FEE_PERCENT || 0))
-      );
+      const paymentAccount = await sellerPaymentAccount(sellerId);
+      const accessToken = paymentAccount.accessToken;
+      const feePolicy = sellerFeePolicy(paymentAccount.accountData);
+      const feePercent = feePolicy.appliedPercent;
       const marketplaceFee = Math.round(unitPrice * feePercent) / 100;
       const preference = await mercadoPagoRequest('/checkout/preferences', {
         method: 'POST',
@@ -442,6 +482,12 @@ exports.createMercadoPagoCheckout = functions
         status: 'checkout_created',
         preferenceId: preference.id,
         marketplaceFee,
+        marketplaceFeePercent: feePercent,
+        configuredMarketplaceFeePercent: feePolicy.configuredPercent,
+        feeTrialApplied: feePolicy.isTrialActive,
+        feeTrialEndsAt: feePolicy.trialEndsAtMillis
+          ? admin.firestore.Timestamp.fromMillis(feePolicy.trialEndsAtMillis)
+          : null,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       return { paymentIntentId: intentRef.id, checkoutUrl, expiresAt: new Date(expiresAtMillis).toISOString() };

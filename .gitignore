@@ -39,7 +39,8 @@ migrate_working_dir/
 *.js_
 *.js.deps
 *.js.map
-!functions/mercado_pago.js
+!functions/*.js
+!functions/test/*.js
 
 # Symbolication and obfuscation
 app.*.symbols

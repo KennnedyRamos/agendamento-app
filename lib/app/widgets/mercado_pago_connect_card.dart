@@ -4,6 +4,7 @@ import 'package:agendamento_app/app/services/mercado_pago_service.dart';
 import 'package:app_links/app_links.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MercadoPagoConnectCard extends StatefulWidget {
@@ -22,6 +23,9 @@ class _MercadoPagoConnectCardState extends State<MercadoPagoConnectCard>
   bool _connecting = false;
   bool _connected = false;
   bool _integrationUnavailable = false;
+  double _marketplaceFeePercent = 3;
+  bool _isFeeTrialActive = false;
+  DateTime? _feeTrialEndsAt;
 
   @override
   void initState() {
@@ -58,6 +62,9 @@ class _MercadoPagoConnectCardState extends State<MercadoPagoConnectCard>
         _loading = false;
         _connecting = false;
         _integrationUnavailable = false;
+        _marketplaceFeePercent = status.marketplaceFeePercent;
+        _isFeeTrialActive = status.isFeeTrialActive;
+        _feeTrialEndsAt = status.feeTrialEndsAt;
       });
     } on FirebaseFunctionsException catch (error) {
       if (!mounted) return;
@@ -117,6 +124,21 @@ class _MercadoPagoConnectCardState extends State<MercadoPagoConnectCard>
     );
   }
 
+  String get _connectedDescription {
+    if (_isFeeTrialActive && _feeTrialEndsAt != null) {
+      final endDate =
+          DateFormat('dd/MM/yyyy').format(_feeTrialEndsAt!.toLocal());
+      return 'Conta conectada. Comissão BarberKR de 0% até $endDate; depois, ${_formatPercent(_marketplaceFeePercent)}% nos pagamentos online. Taxas do Mercado Pago são cobradas separadamente.';
+    }
+    return 'Conta conectada. Comissão BarberKR de ${_formatPercent(_marketplaceFeePercent)}% nos pagamentos online. Taxas do Mercado Pago são cobradas separadamente.';
+  }
+
+  String _formatPercent(double value) {
+    return value == value.roundToDouble()
+        ? value.toStringAsFixed(0)
+        : value.toStringAsFixed(2).replaceFirst(RegExp(r'0+$'), '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -153,7 +175,7 @@ class _MercadoPagoConnectCardState extends State<MercadoPagoConnectCard>
                   const SizedBox(height: 5),
                   Text(
                     _connected
-                        ? 'Conta conectada. Pix e cartão serão enviados diretamente para sua barbearia.'
+                        ? _connectedDescription
                         : _integrationUnavailable
                             ? 'O pagamento online ainda está sendo configurado. Seus clientes podem agendar e pagar no local normalmente.'
                             : 'Conecte sua conta para aceitar Pix e cartão pelo aplicativo.',
