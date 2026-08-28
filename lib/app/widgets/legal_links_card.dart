@@ -5,10 +5,10 @@ class LegalLinksCard extends StatelessWidget {
   const LegalLinksCard({super.key});
 
   static final Uri _privacyPolicyUrl = Uri.parse(
-    'https://github.com/KennnedyRamos/agendamento-app/blob/main/docs/PRIVACY_POLICY.md',
+    'https://github.com/KennnedyRamos/barberkr-app/blob/main/docs/PRIVACY_POLICY.md',
   );
   static final Uri _accountDeletionUrl = Uri.parse(
-    'https://github.com/KennnedyRamos/agendamento-app/blob/main/docs/ACCOUNT_DELETION.md',
+    'https://github.com/KennnedyRamos/barberkr-app/blob/main/docs/ACCOUNT_DELETION.md',
   );
 
   Future<void> _open(BuildContext context, Uri uri) async {

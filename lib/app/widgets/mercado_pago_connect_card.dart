@@ -178,7 +178,7 @@ class _MercadoPagoConnectCardState extends State<MercadoPagoConnectCard>
                         ? _connectedDescription
                         : _integrationUnavailable
                             ? 'O pagamento online ainda está sendo configurado. Seus clientes podem agendar e pagar no local normalmente.'
-                            : 'Conecte sua conta para aceitar Pix e cartão pelo aplicativo.',
+                            : 'Conecte sua conta para aceitar Pix e saldo Mercado Pago pelo aplicativo.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 14),

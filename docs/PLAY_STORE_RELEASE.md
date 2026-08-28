@@ -6,7 +6,7 @@ Este documento separa o que já está preparado no código do que precisa ser co
 
 - Identificador Android: `com.ramos.kennedy.barberapp`.
 - Nome do aplicativo: `BarberKR`.
-- Versão: `2.1.0+4003`.
+- Versão: `2.2.0+4004`.
 - `compileSdk` e `targetSdk`: API 36.
 - Android App Bundle e APK assinados por chave de upload privada.
 - Fallback para assinatura debug bloqueado em builds release.
@@ -63,8 +63,8 @@ Categoria sugerida: **Beleza** ou **Estilo de vida**. A classificação final de
 
 Após confirmar que o repositório está público:
 
-- Política de privacidade: `https://github.com/KennnedyRamos/agendamento-app/blob/main/docs/PRIVACY_POLICY.md`
-- Exclusão de conta: `https://github.com/KennnedyRamos/agendamento-app/blob/main/docs/ACCOUNT_DELETION.md`
+- Política de privacidade: `https://github.com/KennnedyRamos/barberkr-app/blob/main/docs/PRIVACY_POLICY.md`
+- Exclusão de conta: `https://github.com/KennnedyRamos/barberkr-app/blob/main/docs/ACCOUNT_DELETION.md`
 
 Para uma publicação comercial, prefira hospedar esses documentos em páginas permanentes do domínio do produto.
 
@@ -80,7 +80,7 @@ Revise este rascunho no momento do envio, pois a declaração deve refletir o ba
 | Atividade no app | Agendamentos, cancelamentos, planos e avaliações |
 | Identificadores do dispositivo | Token FCM para notificações |
 | Localização | Acessada de forma opcional e efêmera para ordenar proximidade |
-| Informações financeiras | Checkout processado pelo Mercado Pago; o app não armazena dados completos do cartão |
+| Informações financeiras | Identificador, estado e valores do pagamento Pix/Mercado Pago; o app não armazena credenciais bancárias |
 
 Declare criptografia em trânsito, mecanismo de exclusão e práticas dos SDKs de terceiros conforme a configuração final.
 

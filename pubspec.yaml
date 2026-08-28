@@ -1,7 +1,7 @@
 name: agendamento_app
 description: Plataforma de agendamentos e gestão para barbearias.
 publish_to: 'none'
-version: 2.1.0+4003
+version: 2.2.0+4004
 
 environment:
   sdk: ^3.5.3

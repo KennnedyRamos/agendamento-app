@@ -328,6 +328,7 @@ const mercadoPago = require('./mercado_pago');
 
 exports.createMercadoPagoConnectUrl = mercadoPago.createMercadoPagoConnectUrl;
 exports.getMercadoPagoConnectionStatus = mercadoPago.getMercadoPagoConnectionStatus;
+exports.getBarberFinancialDashboard = mercadoPago.getBarberFinancialDashboard;
 exports.mercadoPagoOAuthCallback = mercadoPago.mercadoPagoOAuthCallback;
 exports.createMercadoPagoCheckout = mercadoPago.createMercadoPagoCheckout;
 exports.getPaymentIntentStatus = mercadoPago.getPaymentIntentStatus;

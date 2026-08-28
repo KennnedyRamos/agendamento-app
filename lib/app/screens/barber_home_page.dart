@@ -1,5 +1,6 @@
 import 'package:agendamento_app/app/screens/barber_appointments_tab.dart';
 import 'package:agendamento_app/app/screens/barber_dashboard_tab.dart';
+import 'package:agendamento_app/app/screens/barber_financial_tab.dart';
 import 'package:agendamento_app/app/screens/barber_profile_content.dart';
 import 'package:agendamento_app/app/services/messaging_service.dart';
 import 'package:agendamento_app/app/widgets/notification_bell_button.dart';
@@ -21,7 +22,7 @@ class _BarberHomePageState extends State<BarberHomePage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _tabController.addListener(_syncSelectedTab);
   }
 
@@ -55,6 +56,7 @@ class _BarberHomePageState extends State<BarberHomePage>
       0 => 'Visão geral',
       1 => 'Agendamentos',
       2 => 'Histórico',
+      3 => 'Financeiro',
       _ => 'Minha barbearia',
     };
 
@@ -104,6 +106,9 @@ class _BarberHomePageState extends State<BarberHomePage>
           ),
           const BarberAppointmentsTab(),
           const BarberAppointmentsTab(view: BarberAppointmentsView.history),
+          BarberFinancialTab(
+            onOpenBarbershop: () => _tabController.animateTo(4),
+          ),
           const BarberProfileContent(),
         ],
       ),
@@ -129,6 +134,11 @@ class _BarberHomePageState extends State<BarberHomePage>
                 icon: Icon(Icons.history_outlined),
                 selectedIcon: Icon(Icons.history_rounded),
                 label: 'Histórico',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.account_balance_wallet_outlined),
+                selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+                label: 'Financeiro',
               ),
               NavigationDestination(
                 icon: Icon(Icons.store_outlined),

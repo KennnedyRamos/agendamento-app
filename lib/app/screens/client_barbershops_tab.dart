@@ -658,7 +658,7 @@ class _BarbershopCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Pix e cartão',
+                              'Pix e Mercado Pago',
                               style: Theme.of(context)
                                   .textTheme
                                   .labelSmall

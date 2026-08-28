@@ -1,3 +1,4 @@
+import 'package:agendamento_app/app/models/financial_dashboard.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 
 class MercadoPagoConnectionStatus {
@@ -130,5 +131,12 @@ class MercadoPagoService {
       paymentStatus: result.data['paymentStatus']?.toString(),
       statusDetail: result.data['statusDetail']?.toString(),
     );
+  }
+
+  Future<FinancialDashboard> financialDashboard({int periodDays = 30}) async {
+    final result = await _functions
+        .httpsCallable('getBarberFinancialDashboard')
+        .call<Map<String, dynamic>>({'periodDays': periodDays});
+    return FinancialDashboard.fromMap(result.data);
   }
 }

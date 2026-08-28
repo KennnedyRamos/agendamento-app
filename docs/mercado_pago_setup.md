@@ -5,6 +5,11 @@ plataforma via OAuth e recebe os pagamentos diretamente em sua própria conta
 Mercado Pago. Os tokens nunca são enviados ao Flutter: ficam criptografados no
 Firestore e só podem ser lidos pelas Firebase Functions.
 
+O checkout aceita somente **Pix** e **saldo da conta Mercado Pago**. Cartões,
+boleto e outros meios ficam excluídos da preferência. O pagamento em
+**Dinheiro — pagar no local** é criado diretamente no aplicativo e continua
+disponível mesmo quando a barbearia ainda não conectou o Mercado Pago.
+
 ## 1. Criar a aplicação no Mercado Pago
 
 No painel [Suas integrações](https://www.mercadopago.com.br/developers/panel/app),
@@ -93,11 +98,12 @@ custo conforme o uso.
 1. Mantenha `MP_USE_SANDBOX=true`.
 2. Entre no app com uma conta de barbeiro.
 3. Abra **Barbearia** e toque em **Conectar conta**.
-4. Autorize uma conta de teste do Mercado Pago.
+4. Autorize uma conta de teste do Mercado Pago e cadastre nela uma chave Pix.
 5. Entre como cliente, escolha serviço, data e horário.
-6. Toque em **Pagar com Pix ou cartão** e use os dados de teste oficiais.
+6. Toque em **Pagar com Pix ou Mercado Pago** e use o ambiente de teste oficial.
 7. Confirme no Firestore que o `payment_intent` ficou com status `paid` e que o
    agendamento correspondente foi criado.
+8. Entre novamente como barbeiro e confira o período na aba **Financeiro**.
 
 Antes de produção, troque `MP_USE_SANDBOX` para `false`, configure as
 credenciais de produção e execute novamente o deploy das Functions.
@@ -108,6 +114,7 @@ credenciais de produção e execute novamente o deploy das Functions.
 Barbearia conecta conta -> OAuth Mercado Pago -> token criptografado
 Cliente escolhe horário -> slot reservado por 30 min -> Checkout Pro
 Webhook assinado -> pagamento consultado na API -> agendamento confirmado
+Painel financeiro -> receitas e taxas do backend -> saldo gerenciado no Mercado Pago
 ```
 
 Referências oficiais:
@@ -115,4 +122,5 @@ Referências oficiais:
 - [Split de pagamentos 1:1](https://www.mercadopago.com.br/developers/pt/docs/split-payments/split-1-1/integration-configuration/integrate-marketplace)
 - [OAuth](https://www.mercadopago.com.br/developers/pt/docs/security/oauth/creation)
 - [Checkout Pro para Flutter](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/mobile-integration/flutter)
+- [Configuração dos meios de pagamento](https://www.mercadopago.com.br/developers/pt/docs/checkout-pro/additional-settings/payment-methods)
 - [Validação de webhooks](https://www.mercadopago.com.br/developers/pt/docs/split-payments/additional-content/your-integrations/notifications/webhooks)

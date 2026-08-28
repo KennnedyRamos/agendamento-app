@@ -153,7 +153,7 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage>
 
   String _functionsErrorMessage(FirebaseFunctionsException error) {
     if (error.code == 'not-found' || error.code == 'unavailable') {
-      return 'Pix e cartão ainda não estão disponíveis. Selecione Dinheiro para pagar no local.';
+      return 'Pix e Mercado Pago ainda não estão disponíveis. Selecione Dinheiro para pagar no local.';
     }
     return error.message ?? 'Não foi possível iniciar o pagamento.';
   }
@@ -273,9 +273,9 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage>
                 const SizedBox(height: 10),
                 _PaymentMethodCard(
                   selected: _selectedPaymentMethod == 'mercado_pago',
-                  icon: Icons.credit_card_rounded,
-                  title: 'Pix ou cartão',
-                  subtitle: 'Pagamento online pelo Mercado Pago',
+                  icon: Icons.pix_rounded,
+                  title: 'Pix ou Mercado Pago',
+                  subtitle: 'Pix ou saldo da sua conta Mercado Pago',
                   badge: 'ONLINE',
                   onTap: _loading
                       ? null
@@ -324,10 +324,10 @@ class _PaymentCheckoutPageState extends State<PaymentCheckoutPage>
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.credit_card_rounded),
+                    : const Icon(Icons.pix_rounded),
                 label: Text(
                   _paymentIntentId == null
-                      ? 'Pagar com Pix ou cartão'
+                      ? 'Pagar com Pix ou Mercado Pago'
                       : 'Abrir Mercado Pago novamente',
                 ),
               ),
@@ -733,7 +733,7 @@ class _PaymentStatusPanel extends StatelessWidget {
       'payment_pending' => (
           Icons.schedule_rounded,
           'Aguardando confirmação',
-          'Pix e alguns cartões podem levar alguns instantes.',
+          'A confirmação do Pix ou Mercado Pago pode levar alguns instantes.',
           colors.secondary,
         ),
       'payment_failed' => (
@@ -756,7 +756,7 @@ class _PaymentStatusPanel extends StatelessWidget {
         ),
       _ => (
           Icons.payments_outlined,
-          'Pix ou cartão',
+          'Pix ou Mercado Pago',
           'Escolha a forma de pagamento no ambiente do Mercado Pago.',
           colors.primary,
         ),

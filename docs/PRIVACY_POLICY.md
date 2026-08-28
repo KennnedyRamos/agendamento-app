@@ -1,6 +1,6 @@
 # Política de Privacidade — BarberKR
 
-**Última atualização:** 26 de agosto de 2026
+**Última atualização:** 27 de agosto de 2026
 
 O BarberKR é um aplicativo de agendamentos e gestão para barbearias, desenvolvido por **Kennedy Ramos**. Esta política explica quais dados podem ser tratados, para quais finalidades e quais controles estão disponíveis ao usuário.
 
@@ -14,7 +14,7 @@ Dependendo das funcionalidades utilizadas, o aplicativo pode tratar:
 - **Conteúdo do usuário:** mensagens enviadas no chat, avaliações e comentários.
 - **Notificações:** token técnico do dispositivo, histórico, estado de leitura e referências ao evento relacionado.
 - **Localização do cliente:** quando autorizada, é consultada enquanto a tela de descoberta está em uso para calcular distâncias. Essa localização não é gravada no perfil do cliente pelo BarberKR.
-- **Pagamentos online:** identificadores e estado da transação. Dados completos de cartão não são armazenados pelo BarberKR e são processados no ambiente do Mercado Pago.
+- **Pagamentos online:** identificadores, valores, taxas e estado da transação Pix ou saldo Mercado Pago. Credenciais bancárias e chaves Pix não são armazenadas pelo BarberKR; o processamento ocorre no ambiente do Mercado Pago.
 
 ## 2. Finalidades
 
@@ -35,7 +35,7 @@ Os dados são usados para:
 O aplicativo utiliza provedores necessários à operação:
 
 - **Google Firebase:** autenticação, banco de dados, funções em nuvem e mensagens.
-- **Mercado Pago:** checkout Pix/cartão quando o estabelecimento habilita pagamentos online.
+- **Mercado Pago:** checkout Pix ou saldo da conta quando o estabelecimento habilita pagamentos online.
 - **OpenStreetMap/Nominatim e Google Maps:** geocodificação, mapas e rotas quando essas ações são solicitadas.
 
 Cada provedor trata dados conforme seus próprios termos e políticas. O BarberKR não vende dados pessoais.

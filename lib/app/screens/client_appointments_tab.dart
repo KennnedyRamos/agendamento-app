@@ -4,6 +4,7 @@ import 'package:agendamento_app/app/services/appointment_service.dart';
 import 'package:agendamento_app/app/services/notification_service.dart';
 import 'package:agendamento_app/app/services/review_service.dart';
 import 'package:agendamento_app/app/utils/cancellation_utils.dart';
+import 'package:agendamento_app/app/utils/payment_utils.dart';
 import 'package:agendamento_app/app/widgets/confirm_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -512,7 +513,7 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                   final barberId = data['barberId'] ?? '';
                   final paid = data['paid'] == true;
                   final paymentMethod = data['paymentMethod']?.toString() ?? '';
-                  final isCashPayment = paymentMethod == 'cash';
+                  final isCashPayment = isPayAtShopPayment(paymentMethod);
                   final isMonthlyPlan = data['isMonthlyPlan'] == true;
                   final servicePrice = (data['servicePrice'] is num)
                       ? data['servicePrice'] as num

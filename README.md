@@ -7,7 +7,7 @@
   [![Dart](https://img.shields.io/badge/Dart-3.10.4-0175C2?logo=dart&logoColor=white)](https://dart.dev/)
   [![Firebase](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20FCM-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com/)
   [![Android](https://img.shields.io/badge/Android-API%2036-3DDC84?logo=android&logoColor=white)](https://developer.android.com/)
-  [![CI](https://github.com/KennnedyRamos/agendamento-app/actions/workflows/ci.yml/badge.svg)](https://github.com/KennnedyRamos/agendamento-app/actions/workflows/ci.yml)
+  [![CI](https://github.com/KennnedyRamos/barberkr-app/actions/workflows/ci.yml/badge.svg)](https://github.com/KennnedyRamos/barberkr-app/actions/workflows/ci.yml)
   [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 </div>
 
@@ -33,7 +33,8 @@ Mais do que uma demonstração visual, este projeto explora problemas reais de p
 - Chat individual com histórico e notificações não lidas.
 - Descoberta de barbearias próximas, com consentimento de localização.
 - Logo personalizada por barbearia e identidade visual moderna.
-- Pagamento em dinheiro ativo e integração marketplace com Mercado Pago preparada.
+- Pix, saldo Mercado Pago e dinheiro no local, com integração marketplace segura.
+- Painel financeiro com receitas, taxas, valores pendentes e movimentações por período.
 - Regras de segurança, CI, testes e assinatura de release para Android.
 
 ## 📱 Experiência por perfil
@@ -64,6 +65,7 @@ Mais do que uma demonstração visual, este projeto explora problemas reais de p
 - Personalização da logo exibida aos clientes.
 - Conversas individuais e notificações de agendamento, cancelamento e pagamento.
 - Conexão de uma conta Mercado Pago por barbearia, quando o backend estiver publicado.
+- Painel financeiro com visão de 7, 30, 90 ou 365 dias e separação entre online e dinheiro.
 
 ## 🧠 Decisões de engenharia
 
@@ -83,7 +85,8 @@ flowchart LR
 |---|---|
 | Concorrência de horários | Transação atômica entre `appointments` e `slots` |
 | Segurança | Regras com campos permitidos, identidade imutável e validação de participantes |
-| Pagamentos | Preço validado no servidor, OAuth por estabelecimento e webhook assinado |
+| Pagamentos | Pix/saldo Mercado Pago, preço validado no servidor, OAuth por estabelecimento e webhook assinado |
+| Financeiro | Valores calculados no backend; saldo e transferências permanecem no Mercado Pago |
 | Tokens OAuth | Criptografia AES-256-GCM antes de persistir |
 | Notificações | Push em primeiro plano + histórico por usuário + contador de não lidas |
 | Privacidade | Consentimento contextual de localização e links legais dentro do app |
@@ -97,7 +100,7 @@ flowchart LR
 - **Cloud Firestore** — perfis, barbearias, agenda, chat, avaliações e notificações.
 - **Firebase Cloud Messaging** — notificações push.
 - **Cloud Functions for Firebase** — eventos e backend seguro de pagamentos.
-- **Mercado Pago Marketplace** — Pix e cartão direcionados à conta de cada barbearia.
+- **Mercado Pago Marketplace** — Pix e saldo da conta direcionados a cada barbearia.
 - **Geolocator + OpenStreetMap** — proximidade, geocodificação e apoio à navegação.
 - **GitHub Actions** — análise, testes e validação das funções.
 
@@ -132,8 +135,8 @@ test/                 # Testes unitários e de widgets
 ### 1. Clone e dependências
 
 ```powershell
-git clone https://github.com/KennnedyRamos/agendamento-app.git
-cd agendamento-app
+git clone https://github.com/KennnedyRamos/barberkr-app.git
+cd barberkr-app
 flutter pub get
 ```
 
@@ -179,13 +182,13 @@ node --check functions/index.js
 node --check functions/mercado_pago.js
 ```
 
-Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo, contador de notificações e a política promocional de comissão do marketplace.
+Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo, contador de notificações, política promocional de comissão e resumo financeiro.
 
 ## 💳 Mercado Pago
 
-O agendamento com **Dinheiro — pagar no local** funciona independentemente da conexão de pagamentos. Pix e cartão usam uma arquitetura marketplace: cada barbearia autoriza a própria conta, e o backend cria o checkout com o preço obtido do cadastro no Firestore.
+O agendamento com **Dinheiro — pagar no local** funciona independentemente da conexão de pagamentos. Pix e saldo Mercado Pago usam uma arquitetura marketplace: cada barbearia autoriza a própria conta, e o backend cria o checkout com o preço obtido do cadastro no Firestore. Cartões e boleto ficam desabilitados nesse fluxo.
 
-No lançamento, cada barbearia recebe 30 dias sem comissão do BarberKR. Depois do período promocional, o backend aplica automaticamente 3% apenas aos pagamentos online aprovados; pagamentos no local não geram comissão para a plataforma.
+No lançamento, cada barbearia recebe 30 dias sem comissão do BarberKR. Depois do período promocional, o backend aplica automaticamente 3% apenas aos pagamentos online aprovados; pagamentos no local não geram comissão para a plataforma. O painel financeiro informa receitas e taxas, mas o saldo real e as transferências via Pix são administrados na conta Mercado Pago da barbearia.
 
 As Cloud Functions exigem um projeto Firebase no plano **Blaze** para publicação. Enquanto o backend não estiver publicado, o aplicativo mantém automaticamente a alternativa de pagamento no local. Consulte o guia completo em [docs/mercado_pago_setup.md](docs/mercado_pago_setup.md).
 
@@ -224,6 +227,7 @@ Arquivos realmente sensíveis, como `key.properties`, keystores, tokens OAuth e 
 | Chat e notificações no app | ✅ Implementado |
 | Descoberta por proximidade | ✅ Implementado |
 | Dinheiro no local | ✅ Implementado |
+| Painel financeiro do barbeiro | ✅ Implementado; dados online dependem das Functions |
 | Mercado Pago Marketplace | 🟡 Código pronto; publicação das Functions pendente do plano Blaze |
 | Release Android assinado | ✅ Automatizado |
 | Publicação na Play Store | 🟡 Requer conta do desenvolvedor, ficha da loja e envio manual do AAB |

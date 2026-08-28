@@ -5,6 +5,10 @@ const {
   DEFAULT_MARKETPLACE_FEE_PERCENT,
   resolvePaymentFeePolicy,
 } = require('./payment_fee_policy');
+const {
+  roundMoney,
+  summarizeFinancialActivity,
+} = require('./financial_summary');
 
 const MP_SECRET_NAMES = [
   'MP_CLIENT_ID',
@@ -22,6 +26,22 @@ const CHECKOUT_TTL_MINUTES = 30;
 
 function db() {
   return admin.firestore();
+}
+
+function timestampMillis(value) {
+  if (value && typeof value.toMillis === 'function') return value.toMillis();
+  return null;
+}
+
+function saoPauloDateKey(value) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
 }
 
 function requireEnv(name) {
@@ -265,6 +285,183 @@ exports.getMercadoPagoConnectionStatus = functions
     };
   });
 
+exports.getBarberFinancialDashboard = functions
+  .runWith({ secrets: ['MP_MARKETPLACE_FEE_PERCENT'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Usuario nao autenticado.');
+    }
+    const { shopData } = await assertBarbershopOwner(context.auth.uid);
+
+    const allowedPeriods = new Set([7, 30, 90, 365]);
+    const requestedPeriod = Number(data?.periodDays || 30);
+    const periodDays = allowedPeriods.has(requestedPeriod) ? requestedPeriod : 30;
+    const nowMillis = Date.now();
+    const startMillis = nowMillis - periodDays * 24 * 60 * 60 * 1000;
+    const startTimestamp = admin.firestore.Timestamp.fromMillis(startMillis);
+    const startDate = saoPauloDateKey(new Date(startMillis));
+    const today = saoPauloDateKey(new Date(nowMillis));
+
+    const accountRef = db().collection('payment_accounts').doc(context.auth.uid);
+    const paymentsQuery = db()
+      .collection('payment_intents')
+      .where('sellerId', '==', context.auth.uid)
+      .where('createdAt', '>=', startTimestamp)
+      .orderBy('createdAt', 'desc')
+      .limit(100);
+    const completedCashQuery = db()
+      .collection('appointments')
+      .where('barberId', '==', context.auth.uid)
+      .where('status', '==', 'completed')
+      .where('date', '>=', startDate)
+      .orderBy('date', 'desc')
+      .limit(100);
+    const scheduledCashQuery = db()
+      .collection('appointments')
+      .where('barberId', '==', context.auth.uid)
+      .where('status', '==', 'active')
+      .where('date', '>=', today)
+      .orderBy('date', 'asc')
+      .limit(100);
+
+    const [accountSnap, paymentsSnap, completedCashSnap, scheduledCashSnap] =
+      await Promise.all([
+        accountRef.get(),
+        paymentsQuery.get(),
+        completedCashQuery.get(),
+        scheduledCashQuery.get(),
+      ]);
+
+    const onlineTransactions = paymentsSnap.docs.map((document) => {
+      const payment = document.data();
+      const amount = roundMoney(payment.amount);
+      const marketplaceFee = roundMoney(payment.marketplaceFee);
+      const storedNet = Number(payment.netReceivedAmount);
+      const hasStoredNet = Number.isFinite(storedNet) && storedNet >= 0;
+      const netAmount = hasStoredNet
+        ? roundMoney(storedNet)
+        : roundMoney(Math.max(0, amount - marketplaceFee));
+      const mercadoPagoFee = hasStoredNet
+        ? roundMoney(Math.max(0, amount - marketplaceFee - netAmount))
+        : roundMoney(payment.mercadoPagoFee);
+      const expiresAt = timestampMillis(payment.expiresAt);
+      const rawStatus = String(payment.status || 'payment_pending');
+      let status = 'pending';
+      if (rawStatus === 'paid') status = 'paid';
+      if (rawStatus === 'payment_failed') status = 'failed';
+      if (rawStatus === 'manual_review') status = 'review';
+      if (
+        status === 'pending' &&
+        expiresAt !== null &&
+        expiresAt <= nowMillis
+      ) {
+        status = 'expired';
+      }
+      const occurredAtMillis =
+        timestampMillis(payment.paidAt) ||
+        timestampMillis(payment.updatedAt) ||
+        timestampMillis(payment.createdAt) ||
+        0;
+      const paymentType = String(payment.paymentTypeId || '');
+      const paymentMethod = String(payment.paymentMethodId || '');
+      const methodLabel =
+        paymentMethod === 'pix' || paymentType === 'bank_transfer'
+          ? 'Pix'
+          : 'Mercado Pago';
+
+      return {
+        id: document.id,
+        type: 'online',
+        status,
+        amount,
+        marketplaceFee,
+        mercadoPagoFee,
+        netAmount,
+        isNetEstimated: !hasStoredNet,
+        serviceName: String(payment.serviceName || 'Servico'),
+        clientName: String(payment.clientName || 'Cliente'),
+        methodLabel,
+        paymentStatus: String(payment.paymentStatus || ''),
+        occurredAt: occurredAtMillis
+          ? new Date(occurredAtMillis).toISOString()
+          : null,
+        _occurredAtMillis: occurredAtMillis,
+      };
+    });
+
+    const isCash = (appointment) => {
+      const method = String(appointment.paymentMethod || '');
+      return method === 'cash' || method === 'pay_at_shop';
+    };
+    const completedCash = completedCashSnap.docs.filter((document) =>
+      isCash(document.data())
+    );
+    const scheduledCash = scheduledCashSnap.docs.filter((document) =>
+      isCash(document.data())
+    );
+    const completedCashAmounts = completedCash.map((document) =>
+      roundMoney(document.data().servicePrice)
+    );
+    const scheduledCashAmounts = scheduledCash.map((document) =>
+      roundMoney(document.data().servicePrice)
+    );
+    const cashTransactions = completedCash.map((document) => {
+      const appointment = document.data();
+      const amount = roundMoney(appointment.servicePrice);
+      const occurredAtMillis =
+        timestampMillis(appointment.completedAt) ||
+        timestampMillis(appointment.scheduledAt) ||
+        timestampMillis(appointment.createdAt) ||
+        0;
+      return {
+        id: document.id,
+        type: 'cash',
+        status: 'paid',
+        amount,
+        marketplaceFee: 0,
+        mercadoPagoFee: 0,
+        netAmount: amount,
+        isNetEstimated: false,
+        serviceName: String(appointment.serviceName || 'Servico'),
+        clientName: String(appointment.clientName || 'Cliente'),
+        methodLabel: 'Dinheiro',
+        paymentStatus: 'received_at_shop',
+        occurredAt: occurredAtMillis
+          ? new Date(occurredAtMillis).toISOString()
+          : null,
+        _occurredAtMillis: occurredAtMillis,
+      };
+    });
+
+    const summary = summarizeFinancialActivity({
+      onlineTransactions,
+      completedCashAmounts,
+      scheduledCashAmounts,
+    });
+    const transactions = [...onlineTransactions, ...cashTransactions]
+      .sort((first, second) => second._occurredAtMillis - first._occurredAtMillis)
+      .slice(0, 50)
+      .map(({ _occurredAtMillis, ...transaction }) => transaction);
+    const accountData = accountSnap.data() || {};
+    const feePolicy = sellerFeePolicy(accountData);
+
+    return {
+      periodDays,
+      paymentConnected: accountSnap.exists && shopData.paymentConnected === true,
+      summary,
+      feePolicy: {
+        configuredPercent: feePolicy.configuredPercent,
+        appliedPercent: feePolicy.appliedPercent,
+        isTrialActive: feePolicy.isTrialActive,
+        trialEndsAt: feePolicy.trialEndsAtMillis
+          ? new Date(feePolicy.trialEndsAtMillis).toISOString()
+          : null,
+      },
+      transactions,
+      generatedAt: new Date(nowMillis).toISOString(),
+    };
+  });
+
 exports.mercadoPagoOAuthCallback = functions
   .runWith({ secrets: MP_SECRET_NAMES })
   .https.onRequest(async (request, response) => {
@@ -471,7 +668,18 @@ exports.createMercadoPagoCheckout = functions
           expires: true,
           expiration_date_from: new Date().toISOString(),
           expiration_date_to: new Date(expiresAtMillis).toISOString(),
-          payment_methods: { installments: 12 },
+          payment_methods: {
+            excluded_payment_types: [
+              { id: 'credit_card' },
+              { id: 'debit_card' },
+              { id: 'prepaid_card' },
+              { id: 'ticket' },
+              { id: 'digital_currency' },
+              { id: 'atm' },
+            ],
+            default_payment_method_id: 'pix',
+            installments: 1,
+          },
         },
       });
       const sandbox = process.env.MP_USE_SANDBOX === 'true';
@@ -608,6 +816,20 @@ async function applyPaymentUpdate(payment, sellerId) {
     paymentTypeId: payment.payment_type_id || null,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+  const netReceivedAmount = Number(
+    payment.transaction_details?.net_received_amount
+  );
+  if (Number.isFinite(netReceivedAmount) && netReceivedAmount >= 0) {
+    const normalizedNet = roundMoney(netReceivedAmount);
+    paymentFields.netReceivedAmount = normalizedNet;
+    paymentFields.mercadoPagoFee = roundMoney(
+      Math.max(
+        0,
+        Number(intent.amount) - Number(intent.marketplaceFee || 0) - normalizedNet
+      )
+    );
+    paymentFields.financialValuesEstimated = false;
+  }
   if (payment.status !== 'approved') {
     const finalStatuses = new Set(['rejected', 'cancelled', 'refunded', 'charged_back']);
     await intentRef.update({

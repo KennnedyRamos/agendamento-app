@@ -1,5 +1,6 @@
 import 'package:agendamento_app/app/services/appointment_service.dart';
 import 'package:agendamento_app/app/utils/cancellation_utils.dart';
+import 'package:agendamento_app/app/utils/payment_utils.dart';
 import 'package:agendamento_app/app/widgets/confirm_dialog.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -1160,7 +1161,7 @@ class _RoutineAppointment {
   bool get isCancelled => status == 'cancelled' || status == 'cancelado';
   bool get isCompleted =>
       status == 'completed' || status == 'done' || status == 'concluído';
-  bool get isCashPayment => paymentMethod == 'cash';
+  bool get isCashPayment => isPayAtShopPayment(paymentMethod);
   String get hourLabel => '$hour:00';
 
   String get dateLabel {
