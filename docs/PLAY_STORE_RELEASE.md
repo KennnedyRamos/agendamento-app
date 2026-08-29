@@ -6,7 +6,7 @@ Este documento separa o que já está preparado no código do que precisa ser co
 
 - Identificador Android: `com.ramos.kennedy.barberapp`.
 - Nome do aplicativo: `BarberKR`.
-- Versão: `2.3.0+4005`.
+- Versão pública: `2.0.0` (`versionCode` `4005`).
 - `compileSdk` e `targetSdk`: API 36.
 - Android App Bundle e APK assinados por chave de upload privada.
 - Fallback para assinatura debug bloqueado em builds release.
