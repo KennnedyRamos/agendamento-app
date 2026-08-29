@@ -1,6 +1,7 @@
 import 'package:agendamento_app/app/screens/barber_appointments_tab.dart';
 import 'package:agendamento_app/app/screens/barber_dashboard_tab.dart';
 import 'package:agendamento_app/app/screens/barber_financial_tab.dart';
+import 'package:agendamento_app/app/screens/barber_more_tab.dart';
 import 'package:agendamento_app/app/screens/barber_profile_content.dart';
 import 'package:agendamento_app/app/services/messaging_service.dart';
 import 'package:agendamento_app/app/widgets/notification_bell_button.dart';
@@ -14,29 +15,8 @@ class BarberHomePage extends StatefulWidget {
   State<BarberHomePage> createState() => _BarberHomePageState();
 }
 
-class _BarberHomePageState extends State<BarberHomePage>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _BarberHomePageState extends State<BarberHomePage> {
   int _currentIndex = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 5, vsync: this);
-    _tabController.addListener(_syncSelectedTab);
-  }
-
-  void _syncSelectedTab() {
-    if (!mounted || _currentIndex == _tabController.index) return;
-    setState(() => _currentIndex = _tabController.index);
-  }
-
-  @override
-  void dispose() {
-    _tabController.removeListener(_syncSelectedTab);
-    _tabController.dispose();
-    super.dispose();
-  }
 
   Future<void> _logout() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -48,6 +28,37 @@ class _BarberHomePageState extends State<BarberHomePage>
     Navigator.pushReplacementNamed(context, '/login');
   }
 
+  Future<void> _openSection({
+    required String title,
+    required Widget child,
+  }) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => Scaffold(
+          appBar: AppBar(title: Text(title)),
+          body: child,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openHistory() => _openSection(
+        title: 'Histórico',
+        child: const BarberAppointmentsTab(
+          view: BarberAppointmentsView.history,
+        ),
+      );
+
+  Future<void> _openFinancial() => _openSection(
+        title: 'Financeiro',
+        child: BarberFinancialTab(onOpenBarbershop: _openBarbershop),
+      );
+
+  Future<void> _openBarbershop() => _openSection(
+        title: 'Minha barbearia',
+        child: const BarberProfileContent(),
+      );
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -55,9 +66,7 @@ class _BarberHomePageState extends State<BarberHomePage>
     final sectionTitle = switch (_currentIndex) {
       0 => 'Visão geral',
       1 => 'Agendamentos',
-      2 => 'Histórico',
-      3 => 'Financeiro',
-      _ => 'Minha barbearia',
+      _ => 'Mais',
     };
 
     return Scaffold(
@@ -91,34 +100,30 @@ class _BarberHomePageState extends State<BarberHomePage>
         ),
         actions: [
           if (userId != null) NotificationBellButton(userId: userId),
-          IconButton(
-            tooltip: 'Sair',
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: _logout,
-          ),
+          const SizedBox(width: 6),
         ],
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          BarberDashboardTab(
-            onOpenAgenda: () => _tabController.animateTo(1),
+      body: switch (_currentIndex) {
+        0 => BarberDashboardTab(
+            onOpenAgenda: () => setState(() => _currentIndex = 1),
           ),
-          const BarberAppointmentsTab(),
-          const BarberAppointmentsTab(view: BarberAppointmentsView.history),
-          BarberFinancialTab(
-            onOpenBarbershop: () => _tabController.animateTo(4),
+        1 => const BarberAppointmentsTab(),
+        _ => BarberMoreTab(
+            onOpenFinancial: _openFinancial,
+            onOpenHistory: _openHistory,
+            onOpenBarbershop: _openBarbershop,
+            onLogout: _logout,
           ),
-          const BarberProfileContent(),
-        ],
-      ),
+      },
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: NavigationBar(
             selectedIndex: _currentIndex,
-            onDestinationSelected: _tabController.animateTo,
+            onDestinationSelected: (index) {
+              setState(() => _currentIndex = index);
+            },
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.space_dashboard_outlined),
@@ -131,19 +136,9 @@ class _BarberHomePageState extends State<BarberHomePage>
                 label: 'Agenda',
               ),
               NavigationDestination(
-                icon: Icon(Icons.history_outlined),
-                selectedIcon: Icon(Icons.history_rounded),
-                label: 'Histórico',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-                label: 'Financeiro',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.store_outlined),
-                selectedIcon: Icon(Icons.store_rounded),
-                label: 'Barbearia',
+                icon: Icon(Icons.grid_view_outlined),
+                selectedIcon: Icon(Icons.grid_view_rounded),
+                label: 'Mais',
               ),
             ],
           ),

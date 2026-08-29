@@ -68,11 +68,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _ruaController = TextEditingController();
   final TextEditingController _numeroController = TextEditingController();
   final TextEditingController _cepController = TextEditingController();
-  final TextEditingController _pixKeyController = TextEditingController();
-  final TextEditingController _pixBankController = TextEditingController();
   final TextEditingController _locationLabelController =
       TextEditingController();
-  String _pixKeyType = 'telefone';
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final AppFirestoreService _firestoreService = AppFirestoreService();
@@ -115,8 +112,6 @@ class _RegisterPageState extends State<RegisterPage> {
     _ruaController.dispose();
     _numeroController.dispose();
     _cepController.dispose();
-    _pixKeyController.dispose();
-    _pixBankController.dispose();
     _locationLabelController.dispose();
     for (final item in _serviceItems) {
       item.dispose();
@@ -226,6 +221,9 @@ class _RegisterPageState extends State<RegisterPage> {
       }
     }
 
+    User? createdUser;
+    var registrationPersisted = false;
+
     try {
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
@@ -234,6 +232,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
       final user = userCredential.user;
       if (user == null) return;
+      createdUser = user;
 
       final profile = UserProfile(
         uid: user.uid,
@@ -243,8 +242,6 @@ class _RegisterPageState extends State<RegisterPage> {
         sobrenome: _surnameController.text.trim(),
         telefone: _phoneController.text.trim(),
       );
-
-      await _firestoreService.createUserProfile(profile);
 
       if (_isBarber) {
         final services = _buildServices();
@@ -261,8 +258,8 @@ class _RegisterPageState extends State<RegisterPage> {
           endHour: 18,
         );
 
-        await _firestoreService.createBarbershop(
-          ownerId: user.uid,
+        await _firestoreService.createBarberRegistration(
+          profile: profile,
           nome: _shopNameController.text.trim(),
           telefone: _phoneController.text.trim(),
           endereco: endereco,
@@ -276,16 +273,12 @@ class _RegisterPageState extends State<RegisterPage> {
           services: services,
           availability: availability,
           logoData: logoData,
-          pixKey: _pixKeyController.text.trim().isEmpty
-              ? null
-              : _pixKeyController.text.trim(),
-          pixKeyType: _pixKeyType,
-          pixBankName: _pixBankController.text.trim().isEmpty
-              ? null
-              : _pixBankController.text.trim(),
           monthlyPlans: _buildMonthlyPlans(),
         );
+      } else {
+        await _firestoreService.createUserProfile(profile);
       }
+      registrationPersisted = true;
 
       if (!mounted) return;
       Navigator.pushReplacement(
@@ -293,15 +286,32 @@ class _RegisterPageState extends State<RegisterPage> {
         MaterialPageRoute(builder: (context) => const RoleGatePage()),
       );
     } on FirebaseAuthException catch (e) {
+      await _rollbackIncompleteRegistration(createdUser, registrationPersisted);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_mapAuthError(e))),
       );
-    } catch (e) {
+    } catch (_) {
+      await _rollbackIncompleteRegistration(createdUser, registrationPersisted);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro inesperado: ${e.toString()}')),
+        const SnackBar(
+          content:
+              Text('Não foi possível concluir o cadastro. Tente novamente.'),
+        ),
       );
+    }
+  }
+
+  Future<void> _rollbackIncompleteRegistration(
+    User? user,
+    bool registrationPersisted,
+  ) async {
+    if (user == null || registrationPersisted) return;
+    try {
+      await user.delete();
+    } catch (_) {
+      // Best effort: the original registration error remains the useful one.
     }
   }
 
@@ -571,41 +581,6 @@ class _RegisterPageState extends State<RegisterPage> {
                               ),
                             ),
                           ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _pixKeyController,
-                          decoration:
-                              getAuthenticationInputDecoration("Chave Pix"),
-                        ),
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          initialValue: _pixKeyType,
-                          decoration: getAuthenticationInputDecoration(
-                              "Tipo de chave Pix"),
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'telefone', child: Text('Telefone')),
-                            DropdownMenuItem(
-                                value: 'email', child: Text('E-mail')),
-                            DropdownMenuItem(value: 'cpf', child: Text('CPF')),
-                            DropdownMenuItem(
-                                value: 'cnpj', child: Text('CNPJ')),
-                            DropdownMenuItem(
-                                value: 'aleatoria', child: Text('Aleatória')),
-                          ],
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _pixKeyType = value;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _pixBankController,
-                          decoration: getAuthenticationInputDecoration(
-                              "Banco (opcional)"),
-                        ),
                         const SizedBox(height: 12),
                         const Text(
                           'Planos mensais',

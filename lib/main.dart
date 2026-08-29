@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:agendamento_app/app/app_widget.dart';
 import 'package:agendamento_app/app/services/notification_service.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -13,7 +15,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  await NotificationService().init();
-
   runApp(const AppWidget());
+
+  // Local notification setup is not required to render the first frame.
+  unawaited(
+    NotificationService().init().catchError((Object error) {
+      debugPrint('Falha ao inicializar notificações locais: $error');
+    }),
+  );
 }

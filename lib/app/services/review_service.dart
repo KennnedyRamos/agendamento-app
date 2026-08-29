@@ -41,6 +41,7 @@ class ReviewService {
     return _db
         .collection('reviews')
         .where('barberId', isEqualTo: barberId)
+        .limit(500)
         .snapshots();
   }
 

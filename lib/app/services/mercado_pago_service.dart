@@ -133,10 +133,17 @@ class MercadoPagoService {
     );
   }
 
-  Future<FinancialDashboard> financialDashboard({int periodDays = 30}) async {
+  Future<FinancialDashboard> financialDashboard({
+    int periodDays = 30,
+    DateTime? month,
+  }) async {
+    final parameters = <String, dynamic>{'periodDays': periodDays};
+    if (month != null) {
+      parameters.addAll({'year': month.year, 'month': month.month});
+    }
     final result = await _functions
         .httpsCallable('getBarberFinancialDashboard')
-        .call<Map<String, dynamic>>({'periodDays': periodDays});
+        .call<Map<String, dynamic>>(parameters);
     return FinancialDashboard.fromMap(result.data);
   }
 }

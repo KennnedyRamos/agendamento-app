@@ -6,6 +6,7 @@ const {
   resolvePaymentFeePolicy,
 } = require('./payment_fee_policy');
 const {
+  buildFinancialBreakdowns,
   roundMoney,
   summarizeFinancialActivity,
 } = require('./financial_summary');
@@ -42,6 +43,64 @@ function saoPauloDateKey(value) {
   }).formatToParts(value);
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${values.year}-${values.month}-${values.day}`;
+}
+
+function financialPeriod(data, nowMillis) {
+  const requestedYear = Number(data?.year);
+  const requestedMonth = Number(data?.month);
+  const now = new Date(nowMillis);
+  const currentYear = Number(
+    new Intl.DateTimeFormat('en', {
+      timeZone: 'America/Sao_Paulo',
+      year: 'numeric',
+    }).format(now)
+  );
+  const currentMonth = Number(
+    new Intl.DateTimeFormat('en', {
+      timeZone: 'America/Sao_Paulo',
+      month: 'numeric',
+    }).format(now)
+  );
+  const hasValidMonth =
+    Number.isInteger(requestedYear) &&
+    Number.isInteger(requestedMonth) &&
+    requestedYear >= currentYear - 5 &&
+    requestedYear <= currentYear &&
+    requestedMonth >= 1 &&
+    requestedMonth <= 12 &&
+    (requestedYear < currentYear || requestedMonth <= currentMonth);
+
+  if (hasValidMonth) {
+    const startDate = `${requestedYear}-${String(requestedMonth).padStart(2, '0')}-01`;
+    const nextMonth = requestedMonth === 12 ? 1 : requestedMonth + 1;
+    const nextYear = requestedMonth === 12 ? requestedYear + 1 : requestedYear;
+    const endDateExclusive = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+    const startMillis = Date.parse(`${startDate}T00:00:00-03:00`);
+    const endMillis = Date.parse(`${endDateExclusive}T00:00:00-03:00`);
+    return {
+      year: requestedYear,
+      month: requestedMonth,
+      periodDays: Math.round((endMillis - startMillis) / (24 * 60 * 60 * 1000)),
+      startDate,
+      endDateExclusive,
+      startMillis,
+      endMillis,
+    };
+  }
+
+  const allowedPeriods = new Set([7, 30, 90, 365]);
+  const requestedPeriod = Number(data?.periodDays || 30);
+  const periodDays = allowedPeriods.has(requestedPeriod) ? requestedPeriod : 30;
+  const startMillis = nowMillis - periodDays * 24 * 60 * 60 * 1000;
+  return {
+    year: null,
+    month: null,
+    periodDays,
+    startDate: saoPauloDateKey(new Date(startMillis)),
+    endDateExclusive: null,
+    startMillis,
+    endMillis: null,
+  };
 }
 
 function requireEnv(name) {
@@ -293,36 +352,60 @@ exports.getBarberFinancialDashboard = functions
     }
     const { shopData } = await assertBarbershopOwner(context.auth.uid);
 
-    const allowedPeriods = new Set([7, 30, 90, 365]);
-    const requestedPeriod = Number(data?.periodDays || 30);
-    const periodDays = allowedPeriods.has(requestedPeriod) ? requestedPeriod : 30;
     const nowMillis = Date.now();
-    const startMillis = nowMillis - periodDays * 24 * 60 * 60 * 1000;
-    const startTimestamp = admin.firestore.Timestamp.fromMillis(startMillis);
-    const startDate = saoPauloDateKey(new Date(startMillis));
+    const period = financialPeriod(data, nowMillis);
+    const startTimestamp = admin.firestore.Timestamp.fromMillis(
+      period.startMillis
+    );
     const today = saoPauloDateKey(new Date(nowMillis));
 
     const accountRef = db().collection('payment_accounts').doc(context.auth.uid);
-    const paymentsQuery = db()
-      .collection('payment_intents')
-      .where('sellerId', '==', context.auth.uid)
-      .where('createdAt', '>=', startTimestamp)
-      .orderBy('createdAt', 'desc')
-      .limit(100);
-    const completedCashQuery = db()
+    let paymentsQuery;
+    if (period.year !== null) {
+      paymentsQuery = db()
+        .collection('payment_intents')
+        .where('sellerId', '==', context.auth.uid)
+        .where('date', '>=', period.startDate)
+        .where('date', '<', period.endDateExclusive)
+        .orderBy('date', 'asc');
+    } else {
+      paymentsQuery = db()
+        .collection('payment_intents')
+        .where('sellerId', '==', context.auth.uid)
+        .where('createdAt', '>=', startTimestamp)
+        .orderBy('createdAt', 'desc');
+    }
+    paymentsQuery = paymentsQuery.limit(2000);
+
+    let completedCashQuery = db()
       .collection('appointments')
       .where('barberId', '==', context.auth.uid)
       .where('status', '==', 'completed')
-      .where('date', '>=', startDate)
-      .orderBy('date', 'desc')
-      .limit(100);
-    const scheduledCashQuery = db()
+      .where('date', '>=', period.startDate)
+      .orderBy('date', 'asc');
+    if (period.endDateExclusive) {
+      completedCashQuery = completedCashQuery.where(
+        'date',
+        '<',
+        period.endDateExclusive
+      );
+    }
+    completedCashQuery = completedCashQuery.limit(2000);
+
+    let scheduledCashQuery = db()
       .collection('appointments')
       .where('barberId', '==', context.auth.uid)
       .where('status', '==', 'active')
-      .where('date', '>=', today)
-      .orderBy('date', 'asc')
-      .limit(100);
+      .where('date', '>=', period.startDate > today ? period.startDate : today)
+      .orderBy('date', 'asc');
+    if (period.endDateExclusive) {
+      scheduledCashQuery = scheduledCashQuery.where(
+        'date',
+        '<',
+        period.endDateExclusive
+      );
+    }
+    scheduledCashQuery = scheduledCashQuery.limit(2000);
 
     const [accountSnap, paymentsSnap, completedCashSnap, scheduledCashSnap] =
       await Promise.all([
@@ -382,6 +465,11 @@ exports.getBarberFinancialDashboard = functions
         clientName: String(payment.clientName || 'Cliente'),
         methodLabel,
         paymentStatus: String(payment.paymentStatus || ''),
+        dateKey: /^\d{4}-\d{2}-\d{2}$/.test(String(payment.date || ''))
+          ? String(payment.date)
+          : occurredAtMillis
+            ? saoPauloDateKey(new Date(occurredAtMillis))
+            : '',
         occurredAt: occurredAtMillis
           ? new Date(occurredAtMillis).toISOString()
           : null,
@@ -426,6 +514,11 @@ exports.getBarberFinancialDashboard = functions
         clientName: String(appointment.clientName || 'Cliente'),
         methodLabel: 'Dinheiro',
         paymentStatus: 'received_at_shop',
+        dateKey: /^\d{4}-\d{2}-\d{2}$/.test(String(appointment.date || ''))
+          ? String(appointment.date)
+          : occurredAtMillis
+            ? saoPauloDateKey(new Date(occurredAtMillis))
+            : '',
         occurredAt: occurredAtMillis
           ? new Date(occurredAtMillis).toISOString()
           : null,
@@ -438,17 +531,29 @@ exports.getBarberFinancialDashboard = functions
       completedCashAmounts,
       scheduledCashAmounts,
     });
-    const transactions = [...onlineTransactions, ...cashTransactions]
+    const allTransactions = [...onlineTransactions, ...cashTransactions];
+    const breakdowns = buildFinancialBreakdowns(allTransactions);
+    const transactions = allTransactions
       .sort((first, second) => second._occurredAtMillis - first._occurredAtMillis)
       .slice(0, 50)
-      .map(({ _occurredAtMillis, ...transaction }) => transaction);
+      .map(({ _occurredAtMillis, dateKey, ...transaction }) => transaction);
     const accountData = accountSnap.data() || {};
     const feePolicy = sellerFeePolicy(accountData);
 
     return {
-      periodDays,
+      periodDays: period.periodDays,
+      selectedYear: period.year,
+      selectedMonth: period.month,
+      periodStart: period.startDate,
+      periodEndExclusive: period.endDateExclusive,
       paymentConnected: accountSnap.exists && shopData.paymentConnected === true,
       summary,
+      dailyRevenue: breakdowns.dailyRevenue,
+      serviceBreakdown: breakdowns.serviceBreakdown,
+      dataLimited:
+        paymentsSnap.size >= 2000 ||
+        completedCashSnap.size >= 2000 ||
+        scheduledCashSnap.size >= 2000,
       feePolicy: {
         configuredPercent: feePolicy.configuredPercent,
         appliedPercent: feePolicy.appliedPercent,

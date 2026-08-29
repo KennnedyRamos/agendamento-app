@@ -203,9 +203,6 @@ class _BarbershopDetailPageState extends State<BarbershopDetailPage> {
             const SizedBox(height: 6),
             if (shop.telefone.trim().isNotEmpty)
               Text('Telefone: ${shop.telefone}')
-            else if ((shop.pixKeyType ?? '') == 'telefone' &&
-                (shop.pixKey ?? '').trim().isNotEmpty)
-              Text('Telefone: ${shop.pixKey}')
             else
               FutureBuilder(
                 future: AppFirestoreService().getUserProfile(shop.ownerId),

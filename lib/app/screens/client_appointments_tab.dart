@@ -8,9 +8,7 @@ import 'package:agendamento_app/app/utils/payment_utils.dart';
 import 'package:agendamento_app/app/widgets/confirm_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class ClientAppointmentsTab extends StatefulWidget {
   const ClientAppointmentsTab({super.key});
@@ -110,12 +108,6 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
     if (status != 'active') return false;
     final dateTime = DateTime.parse('$date' 'T' '$hour:00:00');
     return dateTime.isBefore(DateTime.now());
-  }
-
-  bool _canPay(String date, String hour) {
-    if (date.isEmpty || hour.isEmpty) return false;
-    final dateTime = DateTime.parse('$date' 'T' '$hour:00:00');
-    return DateTime.now().isBefore(dateTime.add(const Duration(hours: 1)));
   }
 
   Future<void> _showReviewDialog({
@@ -347,77 +339,6 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
     }
   }
 
-  Future<void> _showPixDialog({
-    required String barberId,
-    required String barbershopId,
-    required String amountLabel,
-  }) async {
-    final byShop = barbershopId.trim().isEmpty
-        ? null
-        : await _firestoreService.getBarbershopById(barbershopId);
-    final byOwner = await _firestoreService.getBarbershopByOwner(barberId);
-    final pixKey = (byShop?.pixKey ?? byOwner?.pixKey ?? '').trim();
-    final pixBank = (byShop?.pixBankName ?? byOwner?.pixBankName ?? '').trim();
-    final pixType = (byShop?.pixKeyType ?? byOwner?.pixKeyType ?? '').trim();
-    if (!mounted) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Pagamento via Pix'),
-        content: SizedBox(
-          width: 320,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                if (pixKey.isEmpty)
-                  const Text('Chave Pix não cadastrada pelo barbeiro.')
-                else ...[
-                  QrImageView(
-                    data: pixKey,
-                    size: 180,
-                  ),
-                  const SizedBox(height: 12),
-                  if (pixBank.isNotEmpty) Text('Banco: $pixBank'),
-                  if (pixType.isNotEmpty)
-                    Text('Tipo: ${_pixTypeLabel(pixType)}'),
-                  const Text('Chave Pix:'),
-                  SelectableText(
-                    pixKey,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-                  TextButton.icon(
-                    onPressed: () async {
-                      await Clipboard.setData(ClipboardData(text: pixKey));
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Chave Pix copiada.'),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.copy, size: 18),
-                    label: const Text('Copiar chave Pix'),
-                  ),
-                  const SizedBox(height: 8),
-                  Text('Valor: $amountLabel'),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Fechar'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -487,8 +408,6 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
           return aDate.compareTo(bDate);
         });
 
-        final currency = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-
         final listContent = docs.isEmpty
             ? Center(
                 child: Text(
@@ -515,10 +434,6 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                   final paymentMethod = data['paymentMethod']?.toString() ?? '';
                   final isCashPayment = isPayAtShopPayment(paymentMethod);
                   final isMonthlyPlan = data['isMonthlyPlan'] == true;
-                  final servicePrice = (data['servicePrice'] is num)
-                      ? data['servicePrice'] as num
-                      : 0;
-
                   final formattedDate = date.isNotEmpty
                       ? DateFormat('dd/MM/yyyy').format(DateTime.parse(date))
                       : '';
@@ -531,11 +446,6 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                       : (isCompleted ? 'Concluído' : 'Ativo');
                   final canReview =
                       _canReview(date, hour, status) && barberId != '';
-                  final showPay = !paid &&
-                      !isCashPayment &&
-                      status == 'active' &&
-                      _canPay(date, hour);
-
                   final scheme = Theme.of(context).colorScheme;
                   final statusBg = isCancelled
                       ? scheme.errorContainer
@@ -771,23 +681,7 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
                               },
                             ),
                           const SizedBox(height: 6),
-                          if (showPay)
-                            ActionChip(
-                              label: Text(
-                                'Pagar',
-                                style: TextStyle(
-                                  color: scheme.onPrimaryContainer,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              backgroundColor: scheme.primaryContainer,
-                              onPressed: () => _showPixDialog(
-                                barberId: barberId,
-                                barbershopId: data['barbershopId'] ?? '',
-                                amountLabel: currency.format(servicePrice),
-                              ),
-                            )
-                          else if (paid && isCompleted)
+                          if (paid && isCompleted)
                             Chip(
                               label: Text(
                                 'Pago',
@@ -944,22 +838,5 @@ class _ClientAppointmentsTabState extends State<ClientAppointmentsTab> {
         );
       },
     );
-  }
-}
-
-String _pixTypeLabel(String value) {
-  switch (value) {
-    case 'telefone':
-      return 'Telefone';
-    case 'email':
-      return 'E-mail';
-    case 'cpf':
-      return 'CPF';
-    case 'cnpj':
-      return 'CNPJ';
-    case 'aleatoria':
-      return 'Aleatória';
-    default:
-      return value;
   }
 }

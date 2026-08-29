@@ -7,9 +7,14 @@ service cloud.firestore {
 
     function hasValidBarbershopLogo() {
       return !request.resource.data.keys().hasAny(['logoData']) ||
-        request.resource.data.logoData == null ||
+         request.resource.data.logoData == null ||
         (request.resource.data.logoData is string &&
-         request.resource.data.logoData.size() <= 250000);
+         request.resource.data.logoData.size() <= 90000);
+    }
+
+    function hasValidBarbershopLogoUpdate() {
+      return !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['logoData']) || hasValidBarbershopLogo();
     }
 
     function hasValidNotificationFields(userId) {
@@ -274,17 +279,23 @@ service cloud.firestore {
         request.auth.uid == barberId &&
         request.resource.data.ownerId == barberId &&
         !request.resource.data.keys().hasAny([
-          'paymentConnected', 'paymentProvider', 'paymentsUpdatedAt'
+          'paymentConnected', 'paymentProvider', 'paymentsUpdatedAt',
+          'pixKey', 'pixKeyType', 'pixBankName'
         ]) &&
         hasValidBarbershopLogo();
       allow update: if isSignedIn() &&
         request.auth.uid == barberId &&
         resource.data.ownerId == barberId &&
         request.resource.data.ownerId == barberId &&
-        hasValidBarbershopLogo() &&
+        hasValidBarbershopLogoUpdate() &&
         !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'ownerId', 'paymentConnected', 'paymentProvider', 'paymentsUpdatedAt'
-        ]);
+        ]) &&
+        (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'pixKey', 'pixKeyType', 'pixBankName'
+        ]) || !request.resource.data.keys().hasAny([
+          'pixKey', 'pixKeyType', 'pixBankName'
+        ]));
       allow delete: if isSignedIn() && request.auth.uid == barberId;
     }
 

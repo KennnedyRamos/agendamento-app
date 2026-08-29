@@ -126,27 +126,95 @@ class FinancialTransaction {
   }
 }
 
+class FinancialDailyRevenue {
+  final DateTime date;
+  final int day;
+  final int appointmentCount;
+  final double grossAmount;
+  final double netAmount;
+
+  const FinancialDailyRevenue({
+    required this.date,
+    required this.day,
+    required this.appointmentCount,
+    required this.grossAmount,
+    required this.netAmount,
+  });
+
+  factory FinancialDailyRevenue.fromMap(Map<String, dynamic> map) {
+    return FinancialDailyRevenue(
+      date: DateTime.tryParse(map['date']?.toString() ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      day: (map['day'] as num?)?.toInt() ?? 0,
+      appointmentCount: (map['appointmentCount'] as num?)?.toInt() ?? 0,
+      grossAmount: (map['grossAmount'] as num?)?.toDouble() ?? 0,
+      netAmount: (map['netAmount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class FinancialServiceSummary {
+  final String serviceName;
+  final int appointmentCount;
+  final double grossAmount;
+  final double netAmount;
+
+  const FinancialServiceSummary({
+    required this.serviceName,
+    required this.appointmentCount,
+    required this.grossAmount,
+    required this.netAmount,
+  });
+
+  factory FinancialServiceSummary.fromMap(Map<String, dynamic> map) {
+    return FinancialServiceSummary(
+      serviceName: map['serviceName']?.toString() ?? 'Serviço',
+      appointmentCount: (map['appointmentCount'] as num?)?.toInt() ?? 0,
+      grossAmount: (map['grossAmount'] as num?)?.toDouble() ?? 0,
+      netAmount: (map['netAmount'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
 class FinancialDashboard {
   final int periodDays;
+  final int? selectedYear;
+  final int? selectedMonth;
+  final DateTime? periodStart;
   final bool paymentConnected;
   final FinancialSummary summary;
   final FinancialFeePolicy feePolicy;
+  final List<FinancialDailyRevenue> dailyRevenue;
+  final List<FinancialServiceSummary> serviceBreakdown;
   final List<FinancialTransaction> transactions;
+  final bool dataLimited;
   final DateTime? generatedAt;
 
   const FinancialDashboard({
     required this.periodDays,
+    this.selectedYear,
+    this.selectedMonth,
+    this.periodStart,
     required this.paymentConnected,
     required this.summary,
     required this.feePolicy,
+    required this.dailyRevenue,
+    required this.serviceBreakdown,
     required this.transactions,
+    required this.dataLimited,
     this.generatedAt,
   });
 
   factory FinancialDashboard.fromMap(Map<String, dynamic> map) {
     final rawTransactions = map['transactions'] as List<dynamic>? ?? const [];
+    final rawDailyRevenue = map['dailyRevenue'] as List<dynamic>? ?? const [];
+    final rawServiceBreakdown =
+        map['serviceBreakdown'] as List<dynamic>? ?? const [];
     return FinancialDashboard(
       periodDays: (map['periodDays'] as num?)?.toInt() ?? 30,
+      selectedYear: (map['selectedYear'] as num?)?.toInt(),
+      selectedMonth: (map['selectedMonth'] as num?)?.toInt(),
+      periodStart: DateTime.tryParse(map['periodStart']?.toString() ?? ''),
       paymentConnected: map['paymentConnected'] == true,
       summary: FinancialSummary.fromMap(
         Map<String, dynamic>.from(map['summary'] as Map? ?? const {}),
@@ -154,6 +222,22 @@ class FinancialDashboard {
       feePolicy: FinancialFeePolicy.fromMap(
         Map<String, dynamic>.from(map['feePolicy'] as Map? ?? const {}),
       ),
+      dailyRevenue: rawDailyRevenue
+          .whereType<Map>()
+          .map(
+            (item) => FinancialDailyRevenue.fromMap(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList(growable: false),
+      serviceBreakdown: rawServiceBreakdown
+          .whereType<Map>()
+          .map(
+            (item) => FinancialServiceSummary.fromMap(
+              Map<String, dynamic>.from(item),
+            ),
+          )
+          .toList(growable: false),
       transactions: rawTransactions
           .whereType<Map>()
           .map(
@@ -162,6 +246,7 @@ class FinancialDashboard {
             ),
           )
           .toList(growable: false),
+      dataLimited: map['dataLimited'] == true,
       generatedAt: DateTime.tryParse(map['generatedAt']?.toString() ?? ''),
     );
   }

@@ -104,9 +104,15 @@ class _BarberDashboardTabState extends State<BarberDashboardTab> {
     if (user == null) {
       return const Center(child: Text('Usuário não autenticado'));
     }
+    final queryStart = DateFormat('yyyy-MM-dd').format(
+      DateTime.now().subtract(const Duration(days: 1)),
+    );
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _appointmentService.watchAppointmentsForBarber(user.uid),
+      stream: _appointmentService.watchRecentAppointmentsForBarber(
+        barberId: user.uid,
+        fromDate: queryStart,
+      ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());

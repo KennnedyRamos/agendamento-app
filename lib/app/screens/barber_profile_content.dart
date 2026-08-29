@@ -66,11 +66,8 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
   final TextEditingController _ruaController = TextEditingController();
   final TextEditingController _numeroController = TextEditingController();
   final TextEditingController _cepController = TextEditingController();
-  final TextEditingController _pixKeyController = TextEditingController();
-  final TextEditingController _pixBankController = TextEditingController();
   final TextEditingController _locationLabelController =
       TextEditingController();
-  String _pixKeyType = 'telefone';
 
   final List<_ServiceFormItem> _serviceItems = [];
   final List<_PlanFormItem> _planItems = [];
@@ -85,6 +82,7 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
   File? _selectedImage;
   bool _loading = true;
   bool _savingBarbershop = false;
+  String? _loadError;
 
   Map<String, dynamic> _currentEnderecoMap() {
     return {
@@ -107,8 +105,6 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
     _ruaController.dispose();
     _numeroController.dispose();
     _cepController.dispose();
-    _pixKeyController.dispose();
-    _pixBankController.dispose();
     _locationLabelController.dispose();
     for (final item in _serviceItems) {
       item.dispose();
@@ -127,80 +123,95 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
 
   Future<void> _loadData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final profile = await _firestoreService.getUserProfile(user.uid);
-    final shop = await _firestoreService.getBarbershopByOwner(user.uid);
-
-    if (!mounted) return;
-
-    if (profile != null) {
-      _nomeController.text = profile.nome;
-      _sobrenomeController.text = profile.sobrenome;
-      _telefoneController.text = profile.telefone;
+    if (user == null) {
+      setState(() {
+        _loading = false;
+        _loadError = 'Usuário não autenticado.';
+      });
+      return;
     }
 
-    if (shop != null) {
-      _shopNameController.text = shop.nome;
-      _bairroController.text = shop.endereco['bairro'] ?? '';
-      _cidadeController.text = shop.endereco['cidade'] ?? '';
-      _ruaController.text = shop.endereco['rua'] ?? '';
-      _numeroController.text = shop.endereco['numero'] ?? '';
-      _cepController.text = shop.endereco['cep'] ?? '';
-      _currentImageUrl = shop.imageUrl;
-      _currentLogoData = shop.logoData;
-      _pixKeyController.text = shop.pixKey ?? '';
-      _pixBankController.text = shop.pixBankName ?? '';
-      _pixKeyType = shop.pixKeyType ?? 'telefone';
-      _locationLat = shop.latitude;
-      _locationLng = shop.longitude;
-      _locationLabelController.text = shop.locationLabel ?? '';
-
-      _serviceItems.clear();
-      for (final service in shop.services) {
-        _serviceItems.add(
-          _ServiceFormItem(
-            name: service.nome,
-            price: service.preco.toStringAsFixed(2),
-          ),
-        );
+    try {
+      final profile = await _firestoreService.getUserProfile(user.uid);
+      final shop = await _firestoreService.getBarbershopByOwner(user.uid);
+      if (shop?.hasLegacyPixData == true) {
+        await _firestoreService.removeLegacyPixData(user.uid);
       }
-      if (_serviceItems.isEmpty) {
+
+      if (!mounted) return;
+
+      if (profile != null) {
+        _nomeController.text = profile.nome;
+        _sobrenomeController.text = profile.sobrenome;
+        _telefoneController.text = profile.telefone;
+      }
+
+      if (shop != null) {
+        _shopNameController.text = shop.nome;
+        _bairroController.text = shop.endereco['bairro'] ?? '';
+        _cidadeController.text = shop.endereco['cidade'] ?? '';
+        _ruaController.text = shop.endereco['rua'] ?? '';
+        _numeroController.text = shop.endereco['numero'] ?? '';
+        _cepController.text = shop.endereco['cep'] ?? '';
+        _currentImageUrl = shop.imageUrl;
+        _currentLogoData = shop.logoData;
+        _locationLat = shop.latitude;
+        _locationLng = shop.longitude;
+        _locationLabelController.text = shop.locationLabel ?? '';
+
+        _serviceItems.clear();
+        for (final service in shop.services) {
+          _serviceItems.add(
+            _ServiceFormItem(
+              name: service.nome,
+              price: service.preco.toStringAsFixed(2),
+            ),
+          );
+        }
+        if (_serviceItems.isEmpty) {
+          _serviceItems.add(_ServiceFormItem());
+        }
+
+        _planItems.clear();
+        for (final plan in shop.monthlyPlans) {
+          _planItems.add(
+            _PlanFormItem(
+              name: plan.name,
+              price: plan.price.toStringAsFixed(2),
+              services: plan.services.join(', '),
+            ),
+          );
+        }
+
+        final days = shop.availability.keys
+            .map((key) => int.tryParse(key))
+            .whereType<int>()
+            .toList();
+        if (days.isNotEmpty) {
+          _selectedDays = days;
+          final firstDay = shop.availability[days.first.toString()] ?? [];
+          final hourInts = firstDay.map((h) => int.tryParse(h) ?? 0).toList();
+          if (hourInts.isNotEmpty) {
+            hourInts.sort();
+            _startHour = hourInts.first;
+            _endHour = hourInts.last;
+          }
+        }
+      } else {
         _serviceItems.add(_ServiceFormItem());
       }
 
-      _planItems.clear();
-      for (final plan in shop.monthlyPlans) {
-        _planItems.add(
-          _PlanFormItem(
-            name: plan.name,
-            price: plan.price.toStringAsFixed(2),
-            services: plan.services.join(', '),
-          ),
-        );
-      }
-
-      final days = shop.availability.keys
-          .map((key) => int.tryParse(key))
-          .whereType<int>()
-          .toList();
-      if (days.isNotEmpty) {
-        _selectedDays = days;
-        final firstDay = shop.availability[days.first.toString()] ?? [];
-        final hourInts = firstDay.map((h) => int.tryParse(h) ?? 0).toList();
-        if (hourInts.isNotEmpty) {
-          hourInts.sort();
-          _startHour = hourInts.first;
-          _endHour = hourInts.last;
-        }
-      }
-    } else {
-      _serviceItems.add(_ServiceFormItem());
+      setState(() {
+        _loading = false;
+        _loadError = null;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _loadError = 'Não foi possível carregar os dados da barbearia.';
+      });
     }
-
-    setState(() {
-      _loading = false;
-    });
   }
 
   Future<void> _pickImage() async {
@@ -317,13 +328,6 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
         services: _buildServices(),
         availability: availability,
         monthlyPlans: _buildMonthlyPlans(),
-        pixKey: _pixKeyController.text.trim().isEmpty
-            ? null
-            : _pixKeyController.text.trim(),
-        pixKeyType: _pixKeyType,
-        pixBankName: _pixBankController.text.trim().isEmpty
-            ? null
-            : _pixBankController.text.trim(),
       );
 
       if (!mounted) return;
@@ -348,6 +352,30 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    if (_loadError != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_rounded, size: 48),
+              const SizedBox(height: 12),
+              Text(_loadError!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() => _loading = true);
+                  _loadData();
+                },
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
 
     final colorScheme = Theme.of(context).colorScheme;
@@ -508,39 +536,6 @@ class _BarberProfileContentState extends State<BarberProfileContent> {
               ),
             ),
           const SizedBox(height: 16),
-          const Text(
-            'Chave Pix',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _pixKeyController,
-            decoration: const InputDecoration(labelText: 'Chave'),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _pixKeyType,
-            decoration: const InputDecoration(labelText: 'Tipo de chave Pix'),
-            items: const [
-              DropdownMenuItem(value: 'telefone', child: Text('Telefone')),
-              DropdownMenuItem(value: 'email', child: Text('E-mail')),
-              DropdownMenuItem(value: 'cpf', child: Text('CPF')),
-              DropdownMenuItem(value: 'cnpj', child: Text('CNPJ')),
-              DropdownMenuItem(value: 'aleatoria', child: Text('Aleatória')),
-            ],
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() {
-                _pixKeyType = value;
-              });
-            },
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _pixBankController,
-            decoration: const InputDecoration(labelText: 'Banco (opcional)'),
-          ),
-          const SizedBox(height: 12),
           const Text(
             'Planos mensais',
             style: TextStyle(fontWeight: FontWeight.bold),

@@ -5,13 +5,12 @@ import '../models/service_item.dart';
 import '../models/user_profile.dart';
 
 class AppFirestoreService {
+  static const int discoveryLimit = 100;
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Future<void> createUserProfile(UserProfile profile) async {
-    await _db.collection('users').doc(profile.uid).set({
-      ...profile.toMap(),
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    await _db.collection('users').doc(profile.uid).set(_userData(profile));
   }
 
   Future<UserProfile?> getUserProfile(String uid) async {
@@ -34,7 +33,52 @@ class AppFirestoreService {
     });
   }
 
-  Future<void> createBarbershop({
+  /// Persists the barber profile and barbershop in one atomic Firestore write.
+  /// This prevents registrations with only one of the two required documents.
+  Future<void> createBarberRegistration({
+    required UserProfile profile,
+    required String nome,
+    required String telefone,
+    required Map<String, String> endereco,
+    required List<ServiceItem> services,
+    required Map<String, List<String>> availability,
+    Map<String, double>? location,
+    String? locationLabel,
+    String? imageUrl,
+    String? imageThumbUrl,
+    String? logoData,
+    double? monthlyPlanPrice,
+    List<MonthlyPlan>? monthlyPlans,
+  }) async {
+    final batch = _db.batch();
+    batch.set(_db.collection('users').doc(profile.uid), _userData(profile));
+    batch.set(
+      _db.collection('barbershops').doc(profile.uid),
+      _barbershopData(
+        ownerId: profile.uid,
+        nome: nome,
+        telefone: telefone,
+        endereco: endereco,
+        services: services,
+        availability: availability,
+        location: location,
+        locationLabel: locationLabel,
+        imageUrl: imageUrl,
+        imageThumbUrl: imageThumbUrl,
+        logoData: logoData,
+        monthlyPlanPrice: monthlyPlanPrice,
+        monthlyPlans: monthlyPlans,
+      ),
+    );
+    await batch.commit();
+  }
+
+  Map<String, dynamic> _userData(UserProfile profile) => {
+        ...profile.toMap(),
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+
+  Map<String, dynamic> _barbershopData({
     required String ownerId,
     required String nome,
     required String telefone,
@@ -47,16 +91,13 @@ class AppFirestoreService {
     String? imageThumbUrl,
     String? logoData,
     double? monthlyPlanPrice,
-    String? pixKey,
-    String? pixKeyType,
-    String? pixBankName,
     List<MonthlyPlan>? monthlyPlans,
-  }) async {
+  }) {
     final nomeLower = nome.trim().toLowerCase();
     final cidadeLower = (endereco['cidade'] ?? '').trim().toLowerCase();
     final bairroLower = (endereco['bairro'] ?? '').trim().toLowerCase();
 
-    await _db.collection('barbershops').doc(ownerId).set({
+    return {
       'ownerId': ownerId,
       'nome': nome,
       'telefone': telefone,
@@ -70,15 +111,12 @@ class AppFirestoreService {
       'cidadeLower': cidadeLower,
       'bairroLower': bairroLower,
       'monthlyPlanPrice': monthlyPlanPrice,
-      'pixKey': pixKey,
-      'pixKeyType': pixKeyType,
-      'pixBankName': pixBankName,
       'monthlyPlans': (monthlyPlans ?? []).map((plan) => plan.toMap()).toList(),
       if (location != null) 'location': location,
       if (locationLabel != null && locationLabel.trim().isNotEmpty)
         'locationLabel': locationLabel,
       'createdAt': FieldValue.serverTimestamp(),
-    });
+    };
   }
 
   Future<Barbershop?> getBarbershopByOwner(String ownerId) async {
@@ -91,6 +129,14 @@ class AppFirestoreService {
     final doc = await _db.collection('barbershops').doc(barbershopId).get();
     if (!doc.exists) return null;
     return Barbershop.fromMap(doc.id, doc.data()!);
+  }
+
+  Future<void> removeLegacyPixData(String ownerId) async {
+    await _db.collection('barbershops').doc(ownerId).update({
+      'pixKey': FieldValue.delete(),
+      'pixKeyType': FieldValue.delete(),
+      'pixBankName': FieldValue.delete(),
+    });
   }
 
   Stream<List<Barbershop>> watchBarbershops({
@@ -106,7 +152,7 @@ class AppFirestoreService {
           query.where('bairroLower', isEqualTo: bairro.trim().toLowerCase());
     }
 
-    return query.snapshots().map((snapshot) {
+    return query.limit(discoveryLimit).snapshots().map((snapshot) {
       return snapshot.docs
           .map((doc) => Barbershop.fromMap(doc.id, doc.data()))
           .toList();
@@ -126,9 +172,6 @@ class AppFirestoreService {
     List<ServiceItem>? services,
     Map<String, List<String>>? availability,
     double? monthlyPlanPrice,
-    String? pixKey,
-    String? pixKeyType,
-    String? pixBankName,
     List<MonthlyPlan>? monthlyPlans,
   }) async {
     final data = <String, dynamic>{
@@ -165,15 +208,11 @@ class AppFirestoreService {
     if (monthlyPlanPrice != null) {
       data['monthlyPlanPrice'] = monthlyPlanPrice;
     }
-    if (pixKey != null) {
-      data['pixKey'] = pixKey;
-    }
-    if (pixKeyType != null) {
-      data['pixKeyType'] = pixKeyType;
-    }
-    if (pixBankName != null) {
-      data['pixBankName'] = pixBankName;
-    }
+    // Remove dados Pix legados: o recebimento online é configurado somente
+    // na conta Mercado Pago da própria barbearia.
+    data['pixKey'] = FieldValue.delete();
+    data['pixKeyType'] = FieldValue.delete();
+    data['pixBankName'] = FieldValue.delete();
     if (monthlyPlans != null) {
       data['monthlyPlans'] = monthlyPlans.map((plan) => plan.toMap()).toList();
     }

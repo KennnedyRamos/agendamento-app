@@ -16,15 +16,13 @@ class Barbershop {
   final String cidadeLower;
   final String bairroLower;
   final double? monthlyPlanPrice;
-  final String? pixKey;
-  final String? pixKeyType;
-  final String? pixBankName;
   final List<MonthlyPlan> monthlyPlans;
   final double? latitude;
   final double? longitude;
   final String? locationLabel;
   final bool paymentConnected;
   final String? paymentProvider;
+  final bool hasLegacyPixData;
 
   Barbershop({
     required this.id,
@@ -41,15 +39,13 @@ class Barbershop {
     this.imageThumbUrl,
     this.logoData,
     this.monthlyPlanPrice,
-    this.pixKey,
-    this.pixKeyType,
-    this.pixBankName,
     required this.monthlyPlans,
     this.latitude,
     this.longitude,
     this.locationLabel,
     this.paymentConnected = false,
     this.paymentProvider,
+    this.hasLegacyPixData = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -66,9 +62,6 @@ class Barbershop {
       'cidadeLower': cidadeLower,
       'bairroLower': bairroLower,
       'monthlyPlanPrice': monthlyPlanPrice,
-      'pixKey': pixKey,
-      'pixKeyType': pixKeyType,
-      'pixBankName': pixBankName,
       'monthlyPlans': monthlyPlans.map((plan) => plan.toMap()).toList(),
       if (latitude != null && longitude != null)
         'location': {
@@ -145,15 +138,15 @@ class Barbershop {
       cidadeLower: map['cidadeLower'] ?? '',
       bairroLower: map['bairroLower'] ?? '',
       monthlyPlanPrice: legacyPlanPrice,
-      pixKey: map['pixKey'],
-      pixKeyType: map['pixKeyType'],
-      pixBankName: map['pixBankName'],
       monthlyPlans: monthlyPlans,
       latitude: latitude,
       longitude: longitude,
       locationLabel: locationLabel,
       paymentConnected: map['paymentConnected'] == true,
       paymentProvider: map['paymentProvider']?.toString(),
+      hasLegacyPixData: map.keys.any(
+        const {'pixKey', 'pixKeyType', 'pixBankName'}.contains,
+      ),
     );
   }
 }

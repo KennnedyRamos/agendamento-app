@@ -5,14 +5,16 @@ import 'dart:typed_data';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 class BarbershopLogoService {
-  static const int _maxLogoBytes = 180 * 1024;
+  // O logo permanece pequeno porque acompanha os documentos exibidos na
+  // descoberta. Isso reduz tráfego, memória e tempo de renderização.
+  static const int _maxLogoBytes = 64 * 1024;
 
   Future<String> prepareLogo(File file) async {
     Uint8List? bytes = await FlutterImageCompress.compressWithFile(
       file.absolute.path,
-      minWidth: 512,
-      minHeight: 512,
-      quality: 72,
+      minWidth: 384,
+      minHeight: 384,
+      quality: 60,
       format: CompressFormat.jpeg,
     );
 
@@ -23,9 +25,9 @@ class BarbershopLogoService {
     if (bytes.length > _maxLogoBytes) {
       bytes = await FlutterImageCompress.compressWithFile(
         file.absolute.path,
-        minWidth: 384,
-        minHeight: 384,
-        quality: 45,
+        minWidth: 256,
+        minHeight: 256,
+        quality: 40,
         format: CompressFormat.jpeg,
       );
     }

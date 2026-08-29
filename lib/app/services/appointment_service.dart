@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AppointmentService {
+  static const int appointmentQueryLimit = 1000;
+
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -330,6 +332,8 @@ class AppointmentService {
     return _db
         .collection('appointments')
         .where('clientId', isEqualTo: clientId)
+        .orderBy('date', descending: true)
+        .limit(appointmentQueryLimit)
         .snapshots();
   }
 
@@ -338,6 +342,21 @@ class AppointmentService {
     return _db
         .collection('appointments')
         .where('barberId', isEqualTo: barberId)
+        .orderBy('date', descending: true)
+        .limit(appointmentQueryLimit)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchRecentAppointmentsForBarber({
+    required String barberId,
+    required String fromDate,
+  }) {
+    return _db
+        .collection('appointments')
+        .where('barberId', isEqualTo: barberId)
+        .where('date', isGreaterThanOrEqualTo: fromDate)
+        .orderBy('date', descending: true)
+        .limit(500)
         .snapshots();
   }
 

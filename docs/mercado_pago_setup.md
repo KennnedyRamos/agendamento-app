@@ -97,13 +97,13 @@ custo conforme o uso.
 
 1. Mantenha `MP_USE_SANDBOX=true`.
 2. Entre no app com uma conta de barbeiro.
-3. Abra **Barbearia** e toque em **Conectar conta**.
+3. Abra **Mais → Minha barbearia** e toque em **Conectar conta**.
 4. Autorize uma conta de teste do Mercado Pago e cadastre nela uma chave Pix.
 5. Entre como cliente, escolha serviço, data e horário.
 6. Toque em **Pagar com Pix ou Mercado Pago** e use o ambiente de teste oficial.
 7. Confirme no Firestore que o `payment_intent` ficou com status `paid` e que o
    agendamento correspondente foi criado.
-8. Entre novamente como barbeiro e confira o período na aba **Financeiro**.
+8. Entre novamente como barbeiro e confira o mês em **Mais → Financeiro**.
 
 Antes de produção, troque `MP_USE_SANDBOX` para `false`, configure as
 credenciais de produção e execute novamente o deploy das Functions.

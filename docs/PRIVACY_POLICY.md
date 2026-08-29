@@ -1,6 +1,6 @@
 # Política de Privacidade — BarberKR
 
-**Última atualização:** 27 de agosto de 2026
+**Última atualização:** 28 de agosto de 2026
 
 O BarberKR é um aplicativo de agendamentos e gestão para barbearias, desenvolvido por **Kennedy Ramos**. Esta política explica quais dados podem ser tratados, para quais finalidades e quais controles estão disponíveis ao usuário.
 

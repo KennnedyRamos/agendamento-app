@@ -6,7 +6,7 @@ Este documento separa o que já está preparado no código do que precisa ser co
 
 - Identificador Android: `com.ramos.kennedy.barberapp`.
 - Nome do aplicativo: `BarberKR`.
-- Versão: `2.2.0+4004`.
+- Versão: `2.3.0+4005`.
 - `compileSdk` e `targetSdk`: API 36.
 - Android App Bundle e APK assinados por chave de upload privada.
 - Fallback para assinatura debug bloqueado em builds release.
@@ -46,7 +46,7 @@ Faça backup seguro de `android/upload-keystore.jks` e `android/key.properties`.
 
 **Descrição completa:**
 
-> O BarberKR conecta clientes e barbearias em uma experiência simples e moderna. Encontre estabelecimentos próximos, consulte serviços e horários, agende atendimentos, converse diretamente com a barbearia e acompanhe suas notificações. Para profissionais, o app oferece painel diário, agenda, histórico, serviços, planos e gestão de disponibilidade.
+> O BarberKR conecta clientes e barbearias em uma experiência simples e moderna. Encontre estabelecimentos próximos, consulte serviços e horários, agende atendimentos, converse diretamente com a barbearia e acompanhe suas notificações. Para profissionais, o app oferece painel diário, agenda, histórico, serviços, planos, disponibilidade e acompanhamento financeiro mensal.
 
 Categoria sugerida: **Beleza** ou **Estilo de vida**. A classificação final deve refletir a escolha disponível no Console.
 

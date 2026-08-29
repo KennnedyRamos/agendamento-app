@@ -241,9 +241,6 @@ class BarbershopProfilePage extends StatelessWidget {
             const SizedBox(height: 6),
             if (barbershop.telefone.trim().isNotEmpty)
               Text('Telefone: ${barbershop.telefone}')
-            else if ((barbershop.pixKeyType ?? '') == 'telefone' &&
-                (barbershop.pixKey ?? '').trim().isNotEmpty)
-              Text('Telefone: ${barbershop.pixKey}')
             else
               FutureBuilder(
                 future:

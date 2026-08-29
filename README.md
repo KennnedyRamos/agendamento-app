@@ -17,7 +17,7 @@
 
 ## ✨ Sobre o projeto
 
-O **BarberKR** é uma aplicação mobile construída em Flutter para conectar clientes e barbearias em uma experiência única de descoberta, agendamento e atendimento. O cliente encontra estabelecimentos próximos, consulta horários, conversa com a barbearia e acompanha seus agendamentos. O barbeiro recebe uma visão operacional do dia, administra serviços, planos, disponibilidade e histórico.
+O **BarberKR** é uma aplicação mobile construída em Flutter para conectar clientes e barbearias em uma experiência única de descoberta, agendamento e atendimento. O cliente encontra estabelecimentos próximos, consulta horários, conversa com a barbearia e acompanha seus agendamentos. O barbeiro recebe uma visão operacional do dia, administra serviços, planos, disponibilidade, histórico e faturamento.
 
 Mais do que uma demonstração visual, este projeto explora problemas reais de produto: concorrência na reserva do mesmo horário, identidade de quem cancelou, comunicação individual, notificações persistentes, privacidade, pagamentos marketplace e preparação de releases assinados.
 
@@ -34,7 +34,8 @@ Mais do que uma demonstração visual, este projeto explora problemas reais de p
 - Descoberta de barbearias próximas, com consentimento de localização.
 - Logo personalizada por barbearia e identidade visual moderna.
 - Pix, saldo Mercado Pago e dinheiro no local, com integração marketplace segura.
-- Painel financeiro com receitas, taxas, valores pendentes e movimentações por período.
+- Painel financeiro mensal com gráfico diário, serviços realizados, taxas e movimentações.
+- Navegação do barbeiro reduzida a **Resumo, Agenda e Mais**, priorizando as ações diárias.
 - Regras de segurança, CI, testes e assinatura de release para Android.
 
 ## 📱 Experiência por perfil
@@ -65,7 +66,18 @@ Mais do que uma demonstração visual, este projeto explora problemas reais de p
 - Personalização da logo exibida aos clientes.
 - Conversas individuais e notificações de agendamento, cancelamento e pagamento.
 - Conexão de uma conta Mercado Pago por barbearia, quando o backend estiver publicado.
-- Painel financeiro com visão de 7, 30, 90 ou 365 dias e separação entre online e dinheiro.
+- Painel financeiro por mês, com receita bruta/líquida, gráfico diário, serviços, taxas e previsões.
+- Área **Mais** agrupando Financeiro, Histórico e Minha barbearia sem sobrecarregar a navegação.
+
+## 💼 Valor de produto e engenharia
+
+O projeto foi desenvolvido como um produto real, e não apenas como uma coleção de telas. Cada fluxo considera experiência, segurança e operação:
+
+- **Produto:** descoberta local, agenda, comunicação e financeiro no mesmo aplicativo.
+- **UX:** ações frequentes permanecem na navegação principal; recursos administrativos ficam agrupados.
+- **Backend:** valores e comissão são calculados no servidor, nunca confiados ao cliente Flutter.
+- **Escalabilidade:** consultas possuem limites, avaliações são carregadas em lotes e imagens são comprimidas e mantidas em cache durante a renderização.
+- **Entrega:** análise estática, testes Flutter/Node, auditoria de dependências, CI e artefatos Android assinados.
 
 ## 🧠 Decisões de engenharia
 
@@ -84,9 +96,12 @@ flowchart LR
 | Tema | Solução aplicada |
 |---|---|
 | Concorrência de horários | Transação atômica entre `appointments` e `slots` |
+| Consistência de cadastro | Perfil do barbeiro e barbearia gravados no mesmo batch; falhas iniciais são revertidas |
 | Segurança | Regras com campos permitidos, identidade imutável e validação de participantes |
 | Pagamentos | Pix/saldo Mercado Pago, preço validado no servidor, OAuth por estabelecimento e webhook assinado |
 | Financeiro | Valores calculados no backend; saldo e transferências permanecem no Mercado Pago |
+| Navegação | Três destinos principais; ferramentas de gestão agrupadas em `Mais` |
+| Desempenho | Consultas limitadas, carregamento concorrente controlado e logos otimizadas |
 | Tokens OAuth | Criptografia AES-256-GCM antes de persistir |
 | Notificações | Push em primeiro plano + histórico por usuário + contador de não lidas |
 | Privacidade | Consentimento contextual de localização e links legais dentro do app |
@@ -182,11 +197,11 @@ node --check functions/index.js
 node --check functions/mercado_pago.js
 ```
 
-Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo, contador de notificações, política promocional de comissão e resumo financeiro.
+Os testes cobrem disponibilidade, identificação do responsável pelo cancelamento, IDs estáveis de conversa, prioridade da logo, contador de notificações, navegação de gestão, layout financeiro compacto, política promocional de comissão, resumo financeiro e agrupamentos por dia/serviço.
 
 ## 💳 Mercado Pago
 
-O agendamento com **Dinheiro — pagar no local** funciona independentemente da conexão de pagamentos. Pix e saldo Mercado Pago usam uma arquitetura marketplace: cada barbearia autoriza a própria conta, e o backend cria o checkout com o preço obtido do cadastro no Firestore. Cartões e boleto ficam desabilitados nesse fluxo.
+O agendamento com **Dinheiro — pagar no local** funciona independentemente da conexão de pagamentos. Pix e saldo Mercado Pago usam uma arquitetura marketplace: cada barbearia autoriza a própria conta, e o backend cria o checkout com o preço obtido do cadastro no Firestore. Cartões e boleto ficam desabilitados nesse fluxo. A chave Pix é cadastrada somente na conta Mercado Pago da barbearia e não é armazenada pelo BarberKR.
 
 No lançamento, cada barbearia recebe 30 dias sem comissão do BarberKR. Depois do período promocional, o backend aplica automaticamente 3% apenas aos pagamentos online aprovados; pagamentos no local não geram comissão para a plataforma. O painel financeiro informa receitas e taxas, mas o saldo real e as transferências via Pix são administrados na conta Mercado Pago da barbearia.
 
@@ -227,7 +242,7 @@ Arquivos realmente sensíveis, como `key.properties`, keystores, tokens OAuth e 
 | Chat e notificações no app | ✅ Implementado |
 | Descoberta por proximidade | ✅ Implementado |
 | Dinheiro no local | ✅ Implementado |
-| Painel financeiro do barbeiro | ✅ Implementado; dados online dependem das Functions |
+| Painel financeiro mensal | ✅ Implementado; dados online dependem das Functions |
 | Mercado Pago Marketplace | 🟡 Código pronto; publicação das Functions pendente do plano Blaze |
 | Release Android assinado | ✅ Automatizado |
 | Publicação na Play Store | 🟡 Requer conta do desenvolvedor, ficha da loja e envio manual do AAB |

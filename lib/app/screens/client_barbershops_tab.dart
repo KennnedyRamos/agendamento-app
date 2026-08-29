@@ -217,36 +217,43 @@ class _ClientBarbershopsTabState extends State<ClientBarbershopsTab> {
             !_ratingsCache.containsKey(shop.ownerId) &&
             !_ratingLoads.contains(shop.ownerId))
         .map((shop) => shop.ownerId)
-        .toSet();
+        .toSet()
+        .take(12)
+        .toList(growable: false);
     if (targets.isEmpty) return;
     _ratingLoads.addAll(targets);
 
-    for (final barberId in targets) {
-      try {
-        final snapshot =
-            await _reviewService.watchReviewsForBarber(barberId).first;
-        final ratingByClient = <String, double>{};
-        for (final doc in snapshot.docs) {
-          final data = doc.data();
-          final clientId = data['clientId']?.toString() ?? doc.id;
-          final rating = data['rating'] ?? 0;
-          ratingByClient[clientId] = rating is num ? rating.toDouble() : 0.0;
-        }
-        if (!mounted) continue;
-        setState(() {
-          if (ratingByClient.isEmpty) {
-            _ratingsCache[barberId] = 0;
-            _ratingsCountCache[barberId] = 0;
-          } else {
-            final values = ratingByClient.values.toList();
-            final total = values.fold<double>(0, (sum, value) => sum + value);
-            _ratingsCache[barberId] = total / values.length;
-            _ratingsCountCache[barberId] = values.length;
+    try {
+      final summaries = await Future.wait(
+        targets.map((barberId) async {
+          try {
+            final snapshot =
+                await _reviewService.watchReviewsForBarber(barberId).first;
+            final ratings = snapshot.docs
+                .map((doc) => doc.data()['rating'])
+                .whereType<num>()
+                .map((rating) => rating.toDouble())
+                .toList(growable: false);
+            final total = ratings.fold<double>(0, (sum, value) => sum + value);
+            return (
+              barberId: barberId,
+              average: ratings.isEmpty ? 0.0 : total / ratings.length,
+              count: ratings.length,
+            );
+          } catch (_) {
+            return (barberId: barberId, average: 0.0, count: 0);
           }
-        });
-      } finally {
-        _ratingLoads.remove(barberId);
-      }
+        }),
+      );
+      if (!mounted) return;
+      setState(() {
+        for (final summary in summaries) {
+          _ratingsCache[summary.barberId] = summary.average;
+          _ratingsCountCache[summary.barberId] = summary.count;
+        }
+      });
+    } finally {
+      _ratingLoads.removeAll(targets);
     }
   }
 
@@ -277,7 +284,7 @@ class _ClientBarbershopsTabState extends State<ClientBarbershopsTab> {
 
         final shops = snapshot.data ?? [];
         _recomputeFilters(shops);
-        _ensureRatings(_filtered);
+        unawaited(_ensureRatings(_filtered));
 
         return CustomScrollView(
           slivers: [

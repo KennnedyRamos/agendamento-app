@@ -5,6 +5,9 @@ void main() {
   test('converte o resumo financeiro retornado pelo backend', () {
     final dashboard = FinancialDashboard.fromMap({
       'periodDays': 30,
+      'selectedYear': 2026,
+      'selectedMonth': 8,
+      'periodStart': '2026-08-01',
       'paymentConnected': true,
       'summary': {
         'grossRevenue': 150,
@@ -28,6 +31,23 @@ void main() {
         'isTrialActive': true,
         'trialEndsAt': '2026-09-26T12:00:00.000Z',
       },
+      'dailyRevenue': [
+        {
+          'date': '2026-08-27',
+          'day': 27,
+          'appointmentCount': 2,
+          'grossAmount': 100,
+          'netAmount': 95.5,
+        },
+      ],
+      'serviceBreakdown': [
+        {
+          'serviceName': 'Corte',
+          'appointmentCount': 2,
+          'grossAmount': 100,
+          'netAmount': 95.5,
+        },
+      ],
       'transactions': [
         {
           'id': 'payment-1',
@@ -44,12 +64,17 @@ void main() {
           'occurredAt': '2026-08-27T12:00:00.000Z',
         },
       ],
+      'dataLimited': false,
       'generatedAt': '2026-08-27T12:05:00.000Z',
     });
 
     expect(dashboard.paymentConnected, isTrue);
     expect(dashboard.summary.netRevenue, 145.5);
+    expect(dashboard.selectedMonth, 8);
+    expect(dashboard.periodStart, DateTime(2026, 8));
     expect(dashboard.feePolicy.isTrialActive, isTrue);
+    expect(dashboard.dailyRevenue.single.day, 27);
+    expect(dashboard.serviceBreakdown.single.appointmentCount, 2);
     expect(dashboard.transactions.single.methodLabel, 'Pix');
     expect(dashboard.transactions.single.occurredAt, isNotNull);
   });
@@ -62,5 +87,8 @@ void main() {
     expect(dashboard.summary.grossRevenue, 0);
     expect(dashboard.feePolicy.configuredPercent, 3);
     expect(dashboard.transactions, isEmpty);
+    expect(dashboard.dailyRevenue, isEmpty);
+    expect(dashboard.serviceBreakdown, isEmpty);
+    expect(dashboard.dataLimited, isFalse);
   });
 }
